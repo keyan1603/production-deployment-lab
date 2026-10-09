@@ -1,0 +1,101 @@
+# The four services as containers. Secrets are mounted as files (read through NAME_FILE), never passed as
+# environment values; only the gateway is given the model provider's key.
+#
+#   mkdir secrets && (create the five files listed under `secrets:` below, see deploy/README.md)
+#   docker compose -f deploy/compose.yaml up --build
+#
+# NOT YET BUILT OR RUN: this repository's author had no container runtime when these files were written.
+# tests/test_deploy_files.py checks them structurally (every service's configuration loads from exactly
+# what is declared here); building and running them is still to do.
+
+x-service: &service
+  build:
+    context: ..
+    dockerfile: deploy/Dockerfile
+    args:
+      APP_VERSION: ${APP_VERSION:-dev}
+  restart: unless-stopped
+  read_only: true
+  user: "10001"
+  cap_drop: [ALL]
+  security_opt: ["no-new-privileges:true"]
+  # DRAIN_SECONDS + GRACE_SECONDS, plus a margin: the orchestrator must not kill a service that is still draining.
+  stop_grace_period: 75s
+  tmpfs: [/tmp]
+
+x-common-env: &common-env
+  ENVIRONMENT: compose
+  HOST: 0.0.0.0
+  DRAIN_SECONDS: "5"
+  GRACE_SECONDS: "60"
+  LOG_LEVEL: INFO
+
+services:
+  identity:
+    <<: *service
+    command: ["python", "-m", "services.identity_service"]
+    environment:
+      <<: *common-env
+      PORT: "8101"
+      TOKEN_SECRET_FILE: /run/secrets/token_secret
+    secrets: [token_secret]
+    healthcheck: &hc
+      test: ["CMD", "python", "-c", "import urllib.request;urllib.request.urlopen('http://127.0.0.1:8101/healthz',timeout=2)"]
+      interval: 15s
+      timeout: 3s
+      retries: 3
+      start_period: 20s
+
+  gateway:
+    <<: *service
+    command: ["python", "-m", "services.gateway_service"]
+    environment:
+      <<: *common-env
+      PORT: "8102"
+      GEMINI_API_KEY_FILE: /run/secrets/gemini_key
+      GATEWAY_SERVICE_KEYS_FILE: /run/secrets/gateway_service_keys
+      REQUESTS_PER_MINUTE: "15"
+      CACHE_SERVICES: knowledge-agent
+    secrets: [gemini_key, gateway_service_keys]
+    healthcheck:
+      <<: *hc
+      test: ["CMD", "python", "-c", "import urllib.request;urllib.request.urlopen('http://127.0.0.1:8102/healthz',timeout=2)"]
+
+  knowledge:
+    <<: *service
+    command: ["python", "-m", "services.knowledge_service"]
+    environment:
+      <<: *common-env
+      PORT: "8103"
+      PUBLIC_URL: http://knowledge:8103
+      GATEWAY_URL: http://gateway:8102
+      TOKEN_SECRET_FILE: /run/secrets/token_secret
+      GATEWAY_SERVICE_KEY_FILE: /run/secrets/gateway_key_knowledge
+    secrets: [token_secret, gateway_key_knowledge]
+    healthcheck:
+      <<: *hc
+      test: ["CMD", "python", "-c", "import urllib.request;urllib.request.urlopen('http://127.0.0.1:8103/healthz',timeout=2)"]
+
+  tickets:
+    <<: *service
+    command: ["python", "-m", "services.ticket_service"]
+    environment:
+      <<: *common-env
+      PORT: "8104"
+      GATEWAY_URL: http://gateway:8102
+      KNOWLEDGE_URL: http://knowledge:8103
+      IDENTITY_URL: http://identity:8101
+      TOKEN_SECRET_FILE: /run/secrets/token_secret
+      GATEWAY_SERVICE_KEY_FILE: /run/secrets/gateway_key_ticket
+    secrets: [token_secret, gateway_key_ticket]
+    ports: ["8104:8104"]
+    healthcheck:
+      <<: *hc
+      test: ["CMD", "python", "-c", "import urllib.request;urllib.request.urlopen('http://127.0.0.1:8104/healthz',timeout=2)"]
+
+secrets:
+  token_secret: {file: ../secrets/token_secret}
+  gemini_key: {file: ../secrets/gemini_key}
+  gateway_service_keys: {file: ../secrets/gateway_service_keys}
+  gateway_key_ticket: {file: ../secrets/gateway_key_ticket}
+  gateway_key_knowledge: {file: ../secrets/gateway_key_knowledge}
