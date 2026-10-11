@@ -1,15 +1,16 @@
 # One image for all four services; the command chooses which one runs.
-#   docker build -f deploy/Dockerfile -t production-deployment-lab .
+#   python scripts/vendor_system.py && podman build -f deploy/Dockerfile -t production-deployment-lab .   (docker build works the same)
 FROM python:3.13-slim
 
 ENV PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1 PIP_NO_CACHE_DIR=1
 
-# git is needed once, to install the system under deployment (the AI System Design lab) from GitHub.
-RUN apt-get update && apt-get install -y --no-install-recommends git && rm -rf /var/lib/apt/lists/*
-
 WORKDIR /app
-COPY requirements.txt .
-RUN pip install -r requirements.txt
+COPY requirements-runtime.txt .
+RUN pip install -r requirements-runtime.txt
+
+# The system under deployment (the AI System Design lab), exported by scripts/vendor_system.py.
+COPY vendor/system /system
+RUN pip install --no-deps /system
 
 COPY deploylab ./deploylab
 COPY services ./services

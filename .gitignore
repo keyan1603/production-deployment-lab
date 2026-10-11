@@ -5,3 +5,5 @@ run2/
 __pycache__/
 *.pyc
 .pytest_cache/
+vendor/
+secrets/

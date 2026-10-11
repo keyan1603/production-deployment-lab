@@ -89,5 +89,16 @@ def test_services_find_each_other_by_compose_service_name_and_port():
     for s in SERVICES.values():
         for var, target in wanted.items():
             if var in s["environment"]:
-                assert s["environment"][var] == f"http://{target}:{ports[target]}"
-    assert SERVICES["knowledge"]["environment"]["PUBLIC_URL"] == f"http://knowledge:{ports['knowledge']}"
+                assert s["environment"][var] == f"https://{target}:{ports[target]}"
+    assert SERVICES["knowledge"]["environment"]["PUBLIC_URL"] == f"https://knowledge:{ports['knowledge']}"
+
+
+def test_every_service_serves_tls_and_trusts_only_the_lab_ca():
+    for name, s in SERVICES.items():
+        env = s["environment"]
+        assert env["TLS_CERT_FILE"] == "/run/secrets/tls_cert" and env["TLS_KEY_FILE"] == "/run/secrets/tls_key", name
+        # Only the gateway also reaches the public internet, so only it trusts public roots as well as the lab CA.
+        trust = "ca_bundle" if name == "gateway" else "ca_pem"
+        assert env["SSL_CERT_FILE"] == f"/run/secrets/{trust}", name
+        assert {"tls_cert", "tls_key", trust} <= set(s["secrets"]), name
+        assert "https://" in str(s["healthcheck"]["test"]), name

@@ -1,0 +1,4 @@
+requisite-ai[gemini,adk,otel,mcp,rag,ollama]>=0.42.0
+google-adk[a2a]>=2.11
+httpx
+python-dotenv

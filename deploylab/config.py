@@ -114,7 +114,14 @@ class Common:
         # notices and stops sending new work. Grace: then wait up to this long for requests already running.
         self.drain_seconds = env.float("DRAIN_SECONDS", 3.0)
         self.grace_seconds = env.float("GRACE_SECONDS", 60.0)
-        self.public_url = env.str("PUBLIC_URL", "") or f"http://{self.host}:{self.port}"
+        # Transport security between services: both files, or neither. With them the service speaks HTTPS; clients
+        # trust the CA through SSL_CERT_FILE. (ADK's A2A client refuses a plain-http agent card off loopback.)
+        cert, key = env.str("TLS_CERT_FILE", ""), env.str("TLS_KEY_FILE", "")
+        if bool(cert) != bool(key):
+            env.problems.append("TLS_CERT_FILE and TLS_KEY_FILE must be set together")
+        self.tls_cert_file, self.tls_key_file = cert or None, key or None
+        scheme = "https" if cert and key else "http"
+        self.public_url = env.str("PUBLIC_URL", "") or f"{scheme}://{self.host}:{self.port}"
 
     def summary(self) -> dict:
         return {"service": self.service, "environment": self.environment, "version": self.version,

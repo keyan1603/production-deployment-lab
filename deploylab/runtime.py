@@ -235,7 +235,8 @@ class DrainingServer(uvicorn.Server):
 
 def serve(app, lc: Lifecycle, common: Common) -> None:
     logs.event(log, "starting", **common.summary())
+    tls = {"ssl_certfile": common.tls_cert_file, "ssl_keyfile": common.tls_key_file} if common.tls_cert_file else {}
     config = uvicorn.Config(app, host=common.host, port=common.port, log_config=None, access_log=False,
-                            timeout_graceful_shutdown=int(common.grace_seconds), lifespan="on")
+                            timeout_graceful_shutdown=int(common.grace_seconds), lifespan="on", **tls)
     DrainingServer(config, lc, common.drain_seconds).run()
     logs.event(log, "stopped", inflight_at_exit=lc.inflight)

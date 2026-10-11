@@ -1,9 +1,10 @@
-requisite-ai[gemini,adk,otel,mcp,rag,ollama]>=0.42.0
-google-adk[a2a]>=2.11
-httpx
-python-dotenv
+-r requirements-runtime.txt
 tabulate
 pytest
 pytest-asyncio
+pyyaml
+cryptography
+certifi
+podman-compose
 # the system being deployed (the AI System Design lab), installed as a package
 ai-system-design-lab @ git+https://github.com/keyan1603/ai-system-design-lab.git

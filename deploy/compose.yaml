@@ -1,19 +1,18 @@
 # The four services as containers. Secrets are mounted as files (read through NAME_FILE), never passed as
-# environment values; only the gateway is given the model provider's key.
+# environment values; only the gateway is given the model provider's key. Traffic between services is TLS,
+# signed by a private CA that every client trusts through SSL_CERT_FILE (ADK's A2A client requires https off loopback).
 #
 #   mkdir secrets && (create the five files listed under `secrets:` below, see deploy/README.md)
-#   docker compose -f deploy/compose.yaml up --build
+#   podman-compose -f deploy/compose.yaml up -d      (docker compose works the same)
 #
-# NOT YET BUILT OR RUN: this repository's author had no container runtime when these files were written.
-# tests/test_deploy_files.py checks them structurally (every service's configuration loads from exactly
-# what is declared here); building and running them is still to do.
+# Built and run with Podman and podman-compose (both open source). tests/test_deploy_files.py also checks
+# structurally that every service's configuration loads from exactly what is declared here.
 
 x-service: &service
-  build:
-    context: ..
-    dockerfile: deploy/Dockerfile
-    args:
-      APP_VERSION: ${APP_VERSION:-dev}
+  # One image runs all four services (the command picks which). Build it once:
+  #   python scripts/vendor_system.py
+  #   podman build --format docker -f deploy/Dockerfile -t production-deployment-lab:phase1 --build-arg APP_VERSION=phase1 .
+  image: localhost/production-deployment-lab:${APP_VERSION:-dev}
   restart: unless-stopped
   read_only: true
   user: "10001"
@@ -29,6 +28,9 @@ x-common-env: &common-env
   DRAIN_SECONDS: "5"
   GRACE_SECONDS: "60"
   LOG_LEVEL: INFO
+  TLS_CERT_FILE: /run/secrets/tls_cert
+  TLS_KEY_FILE: /run/secrets/tls_key
+  SSL_CERT_FILE: /run/secrets/ca_pem        # clients trust only the lab CA
 
 services:
   identity:
@@ -38,9 +40,10 @@ services:
       <<: *common-env
       PORT: "8101"
       TOKEN_SECRET_FILE: /run/secrets/token_secret
-    secrets: [token_secret]
+    secrets: [token_secret, tls_cert, tls_key, ca_pem]
+    ports: ["8101:8101"]          # published only because this lab has no external identity provider to log in against
     healthcheck: &hc
-      test: ["CMD", "python", "-c", "import urllib.request;urllib.request.urlopen('http://127.0.0.1:8101/healthz',timeout=2)"]
+      test: ["CMD", "python", "-c", "import urllib.request;urllib.request.urlopen('https://localhost:8101/healthz',timeout=2)"]
       interval: 15s
       timeout: 3s
       retries: 3
@@ -54,12 +57,14 @@ services:
       PORT: "8102"
       GEMINI_API_KEY_FILE: /run/secrets/gemini_key
       GATEWAY_SERVICE_KEYS_FILE: /run/secrets/gateway_service_keys
+      SSL_CERT_FILE: /run/secrets/ca_bundle     # public roots plus the lab CA: the gateway also calls the model provider
       REQUESTS_PER_MINUTE: "15"
       CACHE_SERVICES: knowledge-agent
-    secrets: [gemini_key, gateway_service_keys]
+      PIN_LIGHT: "true"            # stay on the light model so a free-tier daily quota on the heavy one is not spent
+    secrets: [gemini_key, gateway_service_keys, tls_cert, tls_key, ca_bundle]
     healthcheck:
       <<: *hc
-      test: ["CMD", "python", "-c", "import urllib.request;urllib.request.urlopen('http://127.0.0.1:8102/healthz',timeout=2)"]
+      test: ["CMD", "python", "-c", "import urllib.request;urllib.request.urlopen('https://localhost:8102/healthz',timeout=2)"]
 
   knowledge:
     <<: *service
@@ -67,14 +72,14 @@ services:
     environment:
       <<: *common-env
       PORT: "8103"
-      PUBLIC_URL: http://knowledge:8103
-      GATEWAY_URL: http://gateway:8102
+      PUBLIC_URL: https://knowledge:8103
+      GATEWAY_URL: https://gateway:8102
       TOKEN_SECRET_FILE: /run/secrets/token_secret
       GATEWAY_SERVICE_KEY_FILE: /run/secrets/gateway_key_knowledge
-    secrets: [token_secret, gateway_key_knowledge]
+    secrets: [token_secret, gateway_key_knowledge, tls_cert, tls_key, ca_pem]
     healthcheck:
       <<: *hc
-      test: ["CMD", "python", "-c", "import urllib.request;urllib.request.urlopen('http://127.0.0.1:8103/healthz',timeout=2)"]
+      test: ["CMD", "python", "-c", "import urllib.request;urllib.request.urlopen('https://localhost:8103/healthz',timeout=2)"]
 
   tickets:
     <<: *service
@@ -82,18 +87,22 @@ services:
     environment:
       <<: *common-env
       PORT: "8104"
-      GATEWAY_URL: http://gateway:8102
-      KNOWLEDGE_URL: http://knowledge:8103
-      IDENTITY_URL: http://identity:8101
+      GATEWAY_URL: https://gateway:8102
+      KNOWLEDGE_URL: https://knowledge:8103
+      IDENTITY_URL: https://identity:8101
       TOKEN_SECRET_FILE: /run/secrets/token_secret
       GATEWAY_SERVICE_KEY_FILE: /run/secrets/gateway_key_ticket
-    secrets: [token_secret, gateway_key_ticket]
+    secrets: [token_secret, gateway_key_ticket, tls_cert, tls_key, ca_pem]
     ports: ["8104:8104"]
     healthcheck:
       <<: *hc
-      test: ["CMD", "python", "-c", "import urllib.request;urllib.request.urlopen('http://127.0.0.1:8104/healthz',timeout=2)"]
+      test: ["CMD", "python", "-c", "import urllib.request;urllib.request.urlopen('https://localhost:8104/healthz',timeout=2)"]
 
 secrets:
+  tls_cert: {file: ../secrets/tls_cert.pem}
+  tls_key: {file: ../secrets/tls_key.pem}
+  ca_pem: {file: ../secrets/ca.pem}
+  ca_bundle: {file: ../secrets/ca_bundle.pem}
   token_secret: {file: ../secrets/token_secret}
   gemini_key: {file: ../secrets/gemini_key}
   gateway_service_keys: {file: ../secrets/gateway_service_keys}
