@@ -34,12 +34,59 @@ Every call between services keeps its meaning across the wire: a spent budget is
 - **TLS between services.** ADK's A2A client refuses to fetch an agent card over plain `http` unless the host is loopback, so a deployment where services have their own addresses needs HTTPS. `scripts/make_secrets.py` creates a private CA and a server certificate (`deploylab/certs.py`, the `cryptography` library); every service serves TLS and trusts only that CA through `SSL_CERT_FILE`.
 - **The gateway is the exception.** It is the one service that also calls the public internet, so it gets a bundle of the public roots plus the lab CA. Giving it the lab CA alone broke its calls to the model provider.
 
+## Release safety
+
+What changes an AI system's behaviour without a code change is its prompts, its model pins and its tunable parameters. Here each of those is a **release**: an immutable manifest (`releases/<id>.json`) with a content digest, edited only by creating a new one (a hand-edited manifest fails its digest check).
+
+| Piece | What it does |
+|---|---|
+| `deploylab/releases.py` | `Release`, the registry, the lint, `ReleaseSet` (active release, canary share, shadow release, per-release statistics, the automatic rollback rule) and the admin API |
+| `deploylab/gate.py`, `scripts/release_gate.py` | the gate: lint, model-pin check, a staging copy of the whole system, a black-box evaluation, comparison with the stored baseline |
+| ticket and knowledge services | hold several releases at once; every ticket response names the release and digest that served it |
+| `.github/workflows/release-gate.yml` | the same gate as a pull-request check (not run yet: the repository is not on GitHub) |
+
+**The gate, cheapest check first.** (1) The manifest is well formed: no missing or unknown prompt name (a typo must not pass silently), no empty or oversized prompt, nothing credential-shaped, the policy prompt still names the tool the resolver is given. (2) Every pinned model exists at the provider, checked with a metadata lookup that generates nothing. (3) A staging copy of all four services starts with the candidate, and the gate checks that the candidate is what answers and that the gateway runs the pinned models. (4) 9 labelled tickets and 13 knowledge questions run through it over HTTP and A2A. (5) The result is compared with the stored baseline using rules fixed before the run: **hard failures** (a restricted fact in an answer, a request that errored, an injection not stopped, the wrong release answering), **regressions** (a drop of two or more cases against the baseline) and **warnings** (a one-case drop, a cost rise).
+
+**Rollout.** `activate`, `canary` (a stable share chosen by hashing the ticket id), `shadow` (a copy of active traffic is run on the candidate after the real answer is sent, and only compared) and `rollback`, each one authenticated call. During a canary the service compares the canary's bad-outcome rate (held or errored) with the control's and removes the canary by itself when it is 30 points worse after at least 6 canary requests.
+
+```bash
+venv/Scripts/python scripts/make_releases.py                       # write the five example manifests
+venv/Scripts/python -u scripts/release_gate.py r1-baseline --store # evaluate the baseline once and keep its results
+venv/Scripts/python -u scripts/release_gate.py r2-shorter-reply    # gate a candidate (exit 0 pass, 1 fail, 2 stopped early)
+venv/Scripts/python -u scripts/phase2_study.py                     # live rollout: activate, canary, automatic rollback, shadow
+```
+
+### What the real runs showed
+
+The same staging procedure, 42 model calls, about 20,000 tokens and $0.011 at published prices per evaluation (priced from free-tier usage), about 160 seconds each.
+
+| Release | Gate verdict | What the gate saw |
+|---|---|---|
+| `r1-baseline` | stored | 9/9 tickets handled as expected, 7/7 categories, 4/7 severities, 13/13 questions, 0 leaks |
+| `r1-baseline` again | pass | every ticket decision identical; the share of required facts quoted in replies moved from 93 to 79 percent because two replies dropped a fact. That is the **noise floor** of this metric, so a one-case change is a warning and a fact-quoting change is never a failure on its own |
+| `r2-shorter-reply` | pass | a benign prompt change: nothing moved except reply length and fact quoting (86 percent) |
+| `r3-helpful-answerer` | **fail** | a well-meant prompt letting the assistant use general knowledge when the sources fall short: 13/13 became 7/13. Five of the six changed answers were stopped by the runtime citation check and came back as "withheld by policy checks"; one began by saying the sources had no information and then carried on. No restricted fact leaked (0), so a leak counter alone would have passed this release |
+| `r4-renamed-categories` | **fail** | triage categories renamed in the prompt while the code still validates the old names: tickets handled as expected fell from 9/9 to 2/9, categories from 7/7 to 0/7, and 7 tickets were held |
+| `r5-model-typo` | **stopped at stage 2** | `gemini-3.5-flash-lit`: the provider answered 404. No staging stack was started and no model was called |
+
+**Live rollout** (four processes, `r1-baseline` active):
+
+- The release admin API answered 401 without the key and with a wrong key. A release missing from the registry could not be loaded.
+- `activate` took 0.23 s and `rollback` 0.20 s, with no restart; tickets before, after and after the rollback were served by `r1-baseline`, `r2-shorter-reply` and `r1-baseline`.
+- **A healthy canary** (`r2-shorter-reply` at 30 percent): 4 of 12 tickets went to the canary, all released, the canary stayed on.
+- **A bad canary** (`r4-renamed-categories` at 40 percent, deliberately not gated): 6 tickets were served by the bad release before the guard removed it, all of them held for review (the failure was safe, but six customers' tickets waited for a person); the 10 control tickets were all released. The recorded event: `canary bad-outcome rate 100% vs control 0% after 6 canary requests (limit +30%)`. Detection cost six tickets by design: the minimum sample is what stops one unlucky ticket from removing a good release.
+- Latency per ticket varied between 6 and 44 seconds with the same release because of model latency; no release-versus-release latency claim is made.
+
+**Not yet run live** (implemented and covered by offline tests): shadow mode and the knowledge service's activate-and-rollback. Their first live run used the day's free-tier quota (`429 RESOURCE_EXHAUSTED`), which invalidated their numbers, so none are reported. `python -u scripts/phase2_study.py --sections 5,6` repeats them.
+
+Limits: nine tickets and thirteen questions detect a broken release, not a slightly worse one; a model's run-to-run variation is of the same size as small prompt effects, which is why the rules above need a two-case drop. The gate's evaluation data is the system's own labelled set, so a prompt tuned until the gate passes can overfit it.
+
 ## Run it
 
 ```bash
 python -m venv venv && venv/Scripts/pip install -r requirements.txt
 cp .env.example .env                       # add GEMINI_API_KEY
-venv/Scripts/python -m pytest tests -q     # 52 offline tests, no network
+venv/Scripts/python -m pytest tests -q     # 103 offline tests, no network
 venv/Scripts/python -u scripts/phase1_study.py   # real run: four OS processes, real models
 
 # the same system as containers (Podman and podman-compose, both open source)

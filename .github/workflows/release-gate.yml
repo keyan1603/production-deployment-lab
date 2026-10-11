@@ -1,0 +1,34 @@
+# Release gate in CI: a pull request that adds or changes a release manifest must pass the gate before it can merge.
+#
+# NOT RUN YET: this repository has not been pushed to GitHub, so this workflow has never executed. The same
+# command has been run locally (see README, "release gate"). GitHub Actions is free for public repositories;
+# the only secret needed is GEMINI_API_KEY (a free-tier key), stored as a repository secret.
+
+name: release-gate
+on:
+  pull_request:
+    paths: ["releases/*.json", "deploylab/**", "services/**"]
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with: {fetch-depth: 0}
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.13"}
+      - run: pip install -r requirements.txt
+      - name: Offline tests (no API key, no network)
+        run: python -m pytest tests -q
+      - name: Gate every release manifest this pull request touches
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          changed=$(git diff --name-only origin/${{ github.base_ref }}...HEAD -- 'releases/*.json' | grep -v '/results/' || true)
+          for f in $changed; do
+            id=$(basename "$f" .json)
+            echo "::group::gate $id"
+            python -u scripts/release_gate.py "$id"
+            echo "::endgroup::"
+          done

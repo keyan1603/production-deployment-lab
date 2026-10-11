@@ -49,13 +49,17 @@ def base_env() -> dict:
 
 class Stack:
     def __init__(self, run_dir: Optional[Path] = None, gemini_key: str = "", pin_light: bool = True,
-                 rpm: int = 15, overrides: Optional[dict] = None, version: str = "dev") -> None:
+                 rpm: int = 15, overrides: Optional[dict] = None, version: str = "dev", port_base: int = 8100,
+                 release: str = "r1-baseline", models: Optional[dict] = None) -> None:
         self.run = Path(run_dir or ROOT / "run")
         self.secrets_dir, self.logs_dir = self.run / "secrets", self.run / "logs"
         self.gemini_key, self.pin_light, self.rpm, self.version = gemini_key, pin_light, rpm, version
         self.overrides = overrides or {}
         self.procs: dict[str, Proc] = {}
-        self.urls = {n: f"http://127.0.0.1:{p}" for n, p in PORTS.items()}
+        self.ports = {n: port_base + (p - 8100) for n, p in PORTS.items()}
+        self.urls = {n: f"http://127.0.0.1:{p}" for n, p in self.ports.items()}
+        self.release, self.models = release, models or {}
+        self.admin_key = (self.secrets_dir / "admin_key").read_text() if (self.secrets_dir / "admin_key").exists() else secrets.token_urlsafe(24)
 
     # -- secrets ----------------------------------------------------------------------------------
     def _write_secrets(self) -> None:
@@ -66,11 +70,12 @@ class Stack:
         (self.secrets_dir / "gateway_key_knowledge").write_text(know_key)
         (self.secrets_dir / "gateway_service_keys").write_text(f"ticket-agent={ticket_key},knowledge-agent={know_key}")
         (self.secrets_dir / "gemini_key").write_text(self.gemini_key)
+        (self.secrets_dir / "admin_key").write_text(self.admin_key)
 
     def _env_for(self, name: str) -> dict:
         s = self.secrets_dir
         env = base_env()
-        env.update({"ENVIRONMENT": "local", "APP_VERSION": self.version, "HOST": "127.0.0.1", "PORT": str(PORTS[name]),
+        env.update({"ENVIRONMENT": "local", "APP_VERSION": self.version, "HOST": "127.0.0.1", "PORT": str(self.ports[name]),
                     "DRAIN_SECONDS": "2", "GRACE_SECONDS": "60"})
         if name == "identity":
             env["TOKEN_SECRET_FILE"] = str(s / "token_secret")
@@ -78,6 +83,10 @@ class Stack:
             env.update({"GEMINI_API_KEY_FILE": str(s / "gemini_key"), "GATEWAY_SERVICE_KEYS_FILE": str(s / "gateway_service_keys"),
                         "REQUESTS_PER_MINUTE": str(self.rpm), "PIN_LIGHT": str(self.pin_light).lower(),
                         "AUDIT_PATH": str(self.run / "audit" / "gateway.jsonl")})
+            if self.models.get("light"):
+                env["LIGHT_MODEL"] = self.models["light"]
+            if self.models.get("heavy"):
+                env["HEAVY_MODEL"] = self.models["heavy"]
         elif name == "knowledge":
             env.update({"TOKEN_SECRET_FILE": str(s / "token_secret"), "GATEWAY_URL": self.urls["gateway"],
                         "GATEWAY_SERVICE_KEY_FILE": str(s / "gateway_key_knowledge"),
@@ -86,6 +95,9 @@ class Stack:
             env.update({"TOKEN_SECRET_FILE": str(s / "token_secret"), "GATEWAY_URL": self.urls["gateway"],
                         "GATEWAY_SERVICE_KEY_FILE": str(s / "gateway_key_ticket"), "KNOWLEDGE_URL": self.urls["knowledge"],
                         "IDENTITY_URL": self.urls["identity"]})
+        if name in ("knowledge", "tickets"):
+            env.update({"ACTIVE_RELEASE": self.release, "RELEASES_DIR": str(ROOT / "releases"),
+                        "ADMIN_KEY_FILE": str(s / "admin_key")})
         env.update(self.overrides.get(name, {}))
         return env
 

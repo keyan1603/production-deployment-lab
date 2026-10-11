@@ -150,7 +150,7 @@ def create_app(settings: Settings, gw=None, embedder=None):
     async def status(request: Request) -> JSONResponse:
         if caller(request) is None:
             return JSONResponse({"error": "unauthorized"}, status_code=401)
-        return JSONResponse({"routes": [{"name": r.name, "tier": r.tier, "breaker": r.breaker.state} for r in gw.routes],
+        return JSONResponse({"routes": [{"name": r.name, "tier": r.tier, "breaker": r.breaker.state, "model": r.provider.model} for r in gw.routes],
                              "audit": gw.audit.summary()})
 
     def routes_available() -> object:

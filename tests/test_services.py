@@ -275,8 +275,9 @@ def ticket_server():
 
     def start(platform=None, **extra):
         platform = platform or FakePlatform()
-        app, lc, _ = ticket_service.create_app(ticket_service.Settings(ticket_env(**extra)), platform=platform)
+        app, lc, rs = ticket_service.create_app(ticket_service.Settings(ticket_env(**extra)), platform=platform)
         srv = ServerThread(app, free_port()).start()
+        srv.rs = rs
         started.append(srv)
         return srv, platform, lc
 
@@ -352,7 +353,7 @@ def test_knowledge_service_probes_public_card_public_everything_else_authenticat
     port = free_port()
     env = Env({"TOKEN_SECRET": SECRET, "GATEWAY_URL": "http://127.0.0.1:1", "GATEWAY_SERVICE_KEY": KEY,
                "PORT": str(port), "PUBLIC_URL": "https://knowledge.internal.example"})
-    app, lc = knowledge_service.create_app(knowledge_service.Settings(env), assistant=StubAssistant())
+    app, lc, _ = knowledge_service.create_app(knowledge_service.Settings(env), assistant=StubAssistant())
     srv = ServerThread(app, port).start()
     try:
         assert httpx.get(f"{srv.url}/healthz").status_code == 200
@@ -413,3 +414,99 @@ def test_readiness_answers_from_the_last_result_and_does_not_wait_on_a_slow_depe
     t0 = t.perf_counter()
     assert c.get("/readyz").status_code == 200
     assert t.perf_counter() - t0 < 0.5, "a stale result must be served immediately while a refresh runs"
+
+
+# ---- releases through the ticket service --------------------------------------------------------
+class FixedPlatform(FakePlatform):
+    def __init__(self, action="released", category="billing", explode=False):
+        super().__init__()
+        self.action, self.category, self.explode = action, category, explode
+
+    def handle(self, ticket, operator="system", operator_token=None, correlation_id=""):
+        if self.explode:
+            raise RuntimeError("candidate is broken")
+        return Outcome(ticket.id, ticket.tenant, self.action, reply="x", correlation_id=correlation_id,
+                       triage=TriageResult(category=self.category, severity="high", summary="s"))
+
+
+def release_of(id_):
+    from deploylab.releases import Release
+    return Release(id=id_, prompts={}, models={"light": "a", "heavy": "b"})
+
+
+def send_many(srv, n, prefix="T"):
+    h = {"Authorization": f"Bearer {op_token()}"}
+    return [httpx.post(f"{srv.url}/tickets", json={"id": f"{prefix}{i}", "text": "refund please"}, headers=h, timeout=20).json() for i in range(n)]
+
+
+def test_every_response_names_the_release_that_served_it(ticket_server):
+    srv, _, _ = ticket_server()
+    r = send_many(srv, 1)[0]
+    assert r["release"]["id"] == "test" and r["release"]["role"] == "active" and len(r["release"]["digest"]) == 12
+
+
+def test_a_sick_canary_is_rolled_back_by_the_service_itself(ticket_server):
+    srv, _, _ = ticket_server()
+    rs = srv.rs
+    rs.add(release_of("bad"), FixedPlatform(action="held"))
+    rs.set_canary("bad", 50)
+    results = send_many(srv, 40)
+    served = [r["release"]["id"] for r in results]
+    assert "bad" in served and "test" in served                        # both sides really served traffic
+    last_bad = max(i for i, s in enumerate(served) if s == "bad")
+    assert all(s == "test" for s in served[last_bad + 1:]) and last_bad < 39      # after the rollback, no ticket goes to it
+    assert rs.canary is None and rs.active == "test"
+    assert any(e["type"] == "auto_rollback" and e["release"] == "bad" for e in rs.events)
+
+
+def test_a_healthy_canary_keeps_its_share(ticket_server):
+    srv, _, _ = ticket_server()
+    rs = srv.rs
+    rs.add(release_of("good"), FixedPlatform(action="released"))
+    rs.set_canary("good", 50)
+    served = [r["release"]["role"] for r in send_many(srv, 30)]
+    assert rs.canary is not None and 8 < served.count("canary") < 22
+
+
+def test_a_crashing_canary_counts_as_errors_and_is_rolled_back(ticket_server):
+    srv, _, _ = ticket_server()
+    rs = srv.rs
+    rs.add(release_of("boom"), FixedPlatform(explode=True))
+    rs.set_canary("boom", 50)
+    h = {"Authorization": f"Bearer {op_token()}"}
+    codes = [httpx.post(f"{srv.url}/tickets", json={"id": f"E{i}", "text": "x"}, headers=h, timeout=20).status_code for i in range(40)]
+    assert 500 in codes and rs.canary is None                          # the canary's failures were visible, then it was removed
+    assert codes[-1] == 200
+
+
+def test_shadow_compares_without_changing_the_answer(ticket_server):
+    srv, _, _ = ticket_server()
+    rs = srv.rs
+    rs.add(release_of("cand"), FixedPlatform(action="released", category="technical"))     # differs on category
+    rs.set_shadow("cand")
+    results = send_many(srv, 3)
+    assert all(r["release"]["id"] == "test" for r in results)           # callers only ever see the active release
+    for _ in range(100):
+        if rs.shadow_stats["n"] == 3:
+            break
+        time.sleep(0.05)
+    s = rs.shadow_stats
+    assert s["n"] == 3 and s["same_action"] == 3 and s["same_category"] == 0 and s["same_severity"] == 3 and s["candidate_errors"] == 0
+
+
+def test_a_broken_shadow_is_counted_not_surfaced(ticket_server):
+    srv, _, _ = ticket_server()
+    rs = srv.rs
+    rs.add(release_of("cand"), FixedPlatform(explode=True))
+    rs.set_shadow("cand")
+    assert send_many(srv, 2)[0]["action"] == "released"
+    for _ in range(100):
+        if rs.shadow_stats["n"] == 2:
+            break
+        time.sleep(0.05)
+    assert rs.shadow_stats["candidate_errors"] == 2
+
+
+def test_admin_api_is_not_mounted_without_an_admin_key(ticket_server):
+    srv, _, _ = ticket_server()
+    assert httpx.get(f"{srv.url}/admin/releases", headers={"X-Admin-Key": "anything" * 4}).status_code == 404
