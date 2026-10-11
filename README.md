@@ -81,12 +81,44 @@ The same staging procedure, 42 model calls, about 20,000 tokens and $0.011 at pu
 
 Limits: nine tickets and thirteen questions detect a broken release, not a slightly worse one; a model's run-to-run variation is of the same size as small prompt effects, which is why the rules above need a two-case drop. The gate's evaluation data is the system's own labelled set, so a prompt tuned until the gate passes can overfit it.
 
+## Observability and SLOs
+
+All open source: the OpenTelemetry Collector (contrib 0.162.0), Jaeger 1.76.0, Prometheus 3.15.0, Alertmanager 0.34.1 and Grafana 13.0.2, run with Podman (`observability/compose.yaml`). The services run on the host and send OTLP/HTTP to the collector when `OTEL_EXPORTER_OTLP_ENDPOINT` is set; without it they behave exactly as before.
+
+| Signal | How |
+|---|---|
+| **Traces** | every request is a server span that continues the caller's W3C `traceparent` (`deploylab/runtime.py`); outbound calls inject it (`deploylab/remote.py`; the A2A client already did). Spans from ADK, Requisite and the gateway's own `gateway.chat` join the same trace. Each span carries the correlation id and the serving release |
+| **Metrics** | request counts and durations per service; ticket outcomes by action, release and role; hold reasons; gateway calls by caller, route, tier and outcome; tokens; cost; failed attempts; circuit-breaker state; serving release; probe results; drift verdict. Requisite's own `requisite.agent.*` metrics arrive without any code here |
+| **Logs** | the JSON lines carry `trace_id` and `span_id`, so a log line leads to its trace and back. (A log store such as Loki is not part of this stack.) |
+
+**SLOs are data** (`observability/slo.json`) and the Prometheus rules are generated from them (`scripts/make_slo_rules.py`), using the multi-window, multi-burn-rate method: an alert fires when the error budget is burning fast over a long window *and* a short one. Five SLOs: ticket availability, **ticket safe completion** (a held ticket counts as a failure), ticket latency (finished within 60 s), **answer quality** (synthetic probes), and no traffic on the degraded tier. Four more alerts watch for a restricted fact in a probe answer, a critical drift verdict, an open circuit breaker and degraded-tier serving. `slo.rules.yml` uses hour-scale windows; `slo.lab.rules.yml` has the same thresholds at minute scale so an alert can be seen to fire and clear inside a short run.
+
+**The monitor** (`services/monitor_service.py`, `deploylab/monitor.py`) plays a user of the knowledge assistant on a schedule: six labelled probes in rotation (two answers, two restricted questions, one with no answer, one injection), judged by the same judge the release gate uses. It reduces the last results and the gateway's audit counters to the metrics of the system design lab's drift monitor and exports a verdict (0 stable, 1 warn, 2 critical). The baseline is saved once, by a person, with `scripts/save_baseline.py --yes`; the monitor never writes it.
+
+```bash
+venv/Scripts/python scripts/make_slo_rules.py && venv/Scripts/python scripts/make_dashboard.py
+SLO_RULES=slo.lab.rules.yml podman-compose -f observability/compose.yaml up -d
+venv/Scripts/python scripts/obs_smoke.py        # the stack alone, no model calls
+venv/Scripts/python -u scripts/phase3_study.py  # traces, metrics, dashboard, two staged incidents (needs model quota)
+```
+
+### What has been verified
+
+- **Offline (138 tests in the whole repo, 35 of them for this part):** a server span continues the caller's trace; metric labels stay bounded (twenty different ids become one `path` value); a log line inside a request carries the trace id; the remote clients forward the trace; the burn-rate arithmetic and windows; the probe judge and the drift verdicts for a leak, a quality drop, degraded-tier answers and a fallback rise; and a **contract test**: every metric any dashboard panel, SLO or rule mentions is one the code actually emits, converted to the name Prometheus will expose. A typo in a PromQL expression otherwise stays silent until the alert that should have fired does not.
+- **The stack, live, without models** (`scripts/obs_smoke.py`, log in the blog folder): all six components up in 0.3 to 10.5 s; a counter, a histogram and a gauge sent over OTLP appear in Prometheus under the names the SLO rules use; the span appears in Jaeger; Prometheus loads the 34 generated rules with no errors (`promtool` also accepts both rule files); Grafana provisions the dashboard and both data sources.
+
+### Not yet run live
+
+The staged incidents: a trace across all four services for a real ticket, the dashboard's panels with real data, a bad knowledge release (does the drift monitor read critical and does the quality alert fire?) and a dead gateway (which alerts fire, how long after, do they clear after the fix, does Alertmanager deliver both). They need healthy model answers, and the free tier's 500 requests per day per model (`GenerateRequestsPerDayPerProjectPerModel-FreeTier`) were used up by the earlier phases' runs. `scripts/phase3_study.py` is written and waits for the quota to reset.
+
+Two properties of the method are visible without any run. A 90 percent objective has an error budget of 10 percent, so its largest possible burn rate is 10, below the 14.4 page threshold: the safe-completion SLO can only ever raise the ticket-level alert, never a page, while the 95 percent probe SLO (largest burn 20) can page. And a gateway that is down stops emitting its own metrics, so its failure shows up in its callers' errors and in readiness, not in its own breaker gauge.
+
 ## Run it
 
 ```bash
 python -m venv venv && venv/Scripts/pip install -r requirements.txt
 cp .env.example .env                       # add GEMINI_API_KEY
-venv/Scripts/python -m pytest tests -q     # 103 offline tests, no network
+venv/Scripts/python -m pytest tests -q     # 138 offline tests, no network
 venv/Scripts/python -u scripts/phase1_study.py   # real run: four OS processes, real models
 
 # the same system as containers (Podman and podman-compose, both open source)

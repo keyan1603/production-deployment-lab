@@ -23,9 +23,10 @@ from google.adk.a2a.utils.agent_to_a2a import to_a2a
 from a2a_layer.server import AUDIENCE, AgentAudit, AuthMiddleware, KnowledgeA2AAgent
 from deploylab import logs
 from deploylab.config import Common, Env
+from deploylab.telemetry import telemetry
 from deploylab.releases import Registry, Release, ReleaseSet, admin_routes, patched_prompts
 from deploylab.remote import RemoteEmbeddingProvider, RemoteGatewayProvider
-from deploylab.runtime import PROBE_PATHS, Lifecycle, add_runtime, serve
+from deploylab.runtime import init_telemetry, PROBE_PATHS, Lifecycle, add_runtime, serve
 from knowledge.assistant import KnowledgeAssistant
 from knowledge.corpus import DOCS
 from knowledge.index import SecureIndex
@@ -66,6 +67,9 @@ class ReleasingAssistant:
         release_id = self.rs.active
         answer = self.rs.component(release_id).ask(user, question, corr)
         self.rs.record(release_id, "active", answer.action, answer.latency_s)
+        tel = telemetry()
+        tel.inc("ai.knowledge.answers", action=answer.action, release=release_id, degraded=str(bool(answer.degraded)).lower())
+        tel.observe("ai.knowledge.duration", answer.latency_s, action=answer.action)
         return answer
 
 
@@ -118,6 +122,7 @@ def main() -> None:
         log.error("%s", exc)
         raise SystemExit(2)
     logs.setup(settings.common.service, settings.common.log_level)
+    init_telemetry(settings.common)
     app, lc, _ = create_app(settings)
     serve(app, lc, settings.common)
 

@@ -110,6 +110,8 @@ class Common:
         self.host = env.str("HOST", "127.0.0.1")
         self.port = env.int("PORT", default_port, minimum=1, maximum=65535)
         self.log_level = env.str("LOG_LEVEL", "INFO").upper()
+        # Where OTLP/HTTP telemetry goes (an OpenTelemetry Collector). Empty means telemetry stays in the process.
+        self.otel_endpoint = env.str("OTEL_EXPORTER_OTLP_ENDPOINT", "")
         # Drain: after the stop signal, keep serving for this long with /readyz failing, so a load balancer
         # notices and stops sending new work. Grace: then wait up to this long for requests already running.
         self.drain_seconds = env.float("DRAIN_SECONDS", 3.0)

@@ -1,0 +1,37 @@
+# OpenTelemetry Collector (contrib distribution, Apache-2.0): the one place the services send telemetry.
+# Services speak OTLP/HTTP to it; it fans traces out to Jaeger and turns metrics into a Prometheus scrape endpoint.
+receivers:
+  otlp:
+    protocols:
+      http:
+        endpoint: 0.0.0.0:4318
+      grpc:
+        endpoint: 0.0.0.0:4317
+
+processors:
+  memory_limiter:
+    check_interval: 1s
+    limit_mib: 400
+  batch:
+    timeout: 2s
+
+exporters:
+  otlp/jaeger:
+    endpoint: jaeger:4317
+    tls:
+      insecure: true
+  prometheus:
+    endpoint: 0.0.0.0:8889
+    resource_to_telemetry_conversion:
+      enabled: true          # service.name becomes the service_name label the SLO queries use
+
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [otlp/jaeger]
+    metrics:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [prometheus]

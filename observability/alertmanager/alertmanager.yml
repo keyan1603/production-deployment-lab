@@ -1,0 +1,13 @@
+# Every alert goes to one webhook receiver (a small service in this repo that records what it receives). A real
+# deployment routes by severity: page to an on-call tool, ticket to a queue.
+route:
+  receiver: sink
+  group_by: [alertname, slo]
+  group_wait: 5s
+  group_interval: 15s
+  repeat_interval: 1h
+receivers:
+  - name: sink
+    webhook_configs:
+      - url: http://alert-sink:9099/alert
+        send_resolved: true

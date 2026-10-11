@@ -29,7 +29,8 @@ from starlette.routing import Route
 
 from deploylab import logs
 from deploylab.config import Common, Env
-from deploylab.runtime import Lifecycle, make_app, serve
+from deploylab.runtime import init_telemetry, Lifecycle, make_app, serve
+from deploylab.telemetry import telemetry
 from deploylab.serde import decode_messages, decode_tools, encode_response
 from gateway.factory import build_gateway
 from gateway.provider import GatewayExhausted
@@ -93,13 +94,31 @@ def create_app(settings: Settings, gw=None, embedder=None):
             if rec.correlation_id == corr:
                 return {"correlation_id": corr, "route": rec.route, "tier": tier_of(rec.route), "outcome": rec.outcome,
                         "cost_usd": rec.cost_usd, "input_tokens": rec.input_tokens, "output_tokens": rec.output_tokens,
-                        "latency_ms": rec.latency_ms}
+                        "latency_ms": rec.latency_ms, "attempts": rec.attempts}
         return {"correlation_id": corr}
 
     def trim_audit() -> None:
         with gw.audit._lock:
             if len(gw.audit.records) > MAX_AUDIT_RECORDS:
                 del gw.audit.records[: MAX_AUDIT_RECORDS // 2]
+
+    def measure(service: str, facts: dict, outcome: str) -> None:
+        """The gateway's view of one request, as metrics: who called, which route and tier answered, what it cost."""
+        tel = telemetry()
+        route, tier = facts.get("route") or "none", facts.get("tier") or "none"
+        tel.inc("ai.gateway.requests", caller=service, route=route, tier=tier, outcome=outcome)
+        if facts.get("input_tokens"):
+            tel.inc("ai.gateway.tokens", facts["input_tokens"], direction="input", route=route)
+        if facts.get("output_tokens"):
+            tel.inc("ai.gateway.tokens", facts["output_tokens"], direction="output", route=route)
+        if facts.get("cost_usd"):
+            tel.inc("ai.gateway.cost_usd", facts["cost_usd"], unit="", route=route)
+        if facts.get("latency_ms") is not None and route != "none":
+            tel.observe("ai.gateway.duration", facts["latency_ms"] / 1000.0, route=route)
+        for attempt in facts.get("attempts", []):
+            if not attempt.get("ok"):
+                why = "circuit_open" if attempt.get("error") == "circuit_open" else "error"
+                tel.inc("ai.gateway.attempt_failures", route=attempt.get("route", "none"), reason=why)
 
     async def chat(request: Request) -> JSONResponse:
         service = caller(request)
@@ -125,14 +144,19 @@ def create_app(settings: Settings, gw=None, embedder=None):
             with request_context(ctx):
                 resp = await gw.achat(messages, tools=tools or None, **kwargs)
         except CostLimitException as exc:
+            measure(service, {}, "budget")
             return JSONResponse({"error": "budget", "detail": str(exc)[:200]}, status_code=402)
         except GatewayExhausted as exc:
+            measure(service, audit_facts(corr), "exhausted")
             return JSONResponse({"error": "exhausted", "detail": str(exc)[:200]}, status_code=503)
         except ProviderException as exc:
+            measure(service, audit_facts(corr), "provider_error")
             return JSONResponse({"error": "provider", "detail": str(exc)[:200]}, status_code=502)
         finally:
             trim_audit()
-        return JSONResponse({"response": encode_response(resp), "audit": audit_facts(corr)})
+        facts = audit_facts(corr)
+        measure(service, facts, facts.get("outcome", "ok"))
+        return JSONResponse({"response": encode_response(resp), "audit": {k: v for k, v in facts.items() if k != "attempts"}})
 
     async def embed(request: Request) -> JSONResponse:
         if caller(request) is None:
@@ -158,6 +182,8 @@ def create_app(settings: Settings, gw=None, embedder=None):
         return "every route's circuit breaker is open" if open_all else True
 
     lc.checks["routes"] = routes_available
+    states = {"closed": 0, "half_open": 1, "open": 2}
+    telemetry().gauge("ai.gateway.breaker_state", lambda: [(states.get(r.breaker.state, 0), {"route": r.name}) for r in gw.routes])
     app = make_app(lc, [Route("/v1/chat", chat, methods=["POST"]), Route("/v1/embed", embed, methods=["POST"]),
                         Route("/v1/status", status)])
     return app, lc, gw
@@ -171,6 +197,7 @@ def main() -> None:
         log.error("%s", exc)
         raise SystemExit(2)
     logs.setup(settings.common.service, settings.common.log_level)
+    init_telemetry(settings.common)
     app, lc, _ = create_app(settings)
     serve(app, lc, settings.common)
 

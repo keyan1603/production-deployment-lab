@@ -30,7 +30,10 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse
 from starlette.routing import Route
 
-from deploylab import logs
+from opentelemetry import propagate, trace
+from opentelemetry.trace import SpanKind, Status, StatusCode
+
+from deploylab import logs, telemetry as tele
 from deploylab.config import Common
 
 log = logging.getLogger("runtime")
@@ -143,19 +146,37 @@ class RuntimeMiddleware:
                 message = {**message, "headers": list(message.get("headers", [])) + extra}
             await send(message)
 
+        tel = tele.telemetry()
+        label = tele.path_label(path)
+        span_cm = None
         if not probe:
             self.lc.inflight += 1
+            # Continue the caller's trace (W3C traceparent) so one request is one trace across every service it touches.
+            parent = propagate.extract({k: v for k, v in headers.items() if k in ("traceparent", "tracestate")})
+            span_cm = tel.tracer.start_as_current_span(f"{scope['method']} {label}", context=parent, kind=SpanKind.SERVER,
+                                                       attributes={"http.request.method": scope["method"], "url.path": label,
+                                                                   "app.correlation_id": cid, "app.release": self.lc.version})
+            span = span_cm.__enter__()
         try:
             await self.app(scope, receive, send_wrapper)
-        except Exception:
+        except Exception as exc:
             status["code"] = 500
             log.exception("unhandled error")
+            if span_cm is not None:
+                span.record_exception(exc)
             raise
         finally:
             if not probe:
                 self.lc.inflight -= 1
-                logs.event(log, "request", method=scope["method"], path=path, status=status["code"],
-                           ms=round((time.perf_counter() - t0) * 1000, 1))
+                seconds = time.perf_counter() - t0
+                klass = f"{status['code'] // 100}xx" if status["code"] else "none"
+                span.set_attribute("http.response.status_code", status["code"])
+                if status["code"] >= 500:
+                    span.set_status(Status(StatusCode.ERROR))
+                tel.inc("http.server.requests", method=scope["method"], path=label, status_class=klass)
+                tel.observe("http.server.duration", seconds, method=scope["method"], path=label)
+                logs.event(log, "request", method=scope["method"], path=path, status=status["code"], ms=round(seconds * 1000, 1))
+                span_cm.__exit__(None, None, None)
             logs.correlation_id.reset(token)
 
 
@@ -231,6 +252,11 @@ class DrainingServer(uvicorn.Server):
         self.lc.draining = True
         logs.event(log, "stop signal received, draining", signal=int(sig), drain_s=self.drain_s, inflight=self.lc.inflight)
         threading.Timer(self.drain_s, lambda: uvicorn.Server.handle_exit(self, sig, frame)).start()
+
+
+def init_telemetry(common: Common) -> "tele.Telemetry":
+    """Call once at process start, before any component that creates tracers (Requisite, ADK) is built."""
+    return tele.setup(common.service, common.version, common.otel_endpoint, common.environment)
 
 
 def serve(app, lc: Lifecycle, common: Common) -> None:

@@ -16,7 +16,7 @@ from starlette.routing import Route
 
 from deploylab import logs
 from deploylab.config import Common, Env
-from deploylab.runtime import Lifecycle, make_app, serve
+from deploylab.runtime import Lifecycle, init_telemetry, make_app, serve
 from identity.tokens import AuthError, IdentityProvider
 from knowledge.corpus import USERS
 
@@ -75,6 +75,7 @@ def main() -> None:
         log.error("%s", exc)
         raise SystemExit(2)
     logs.setup(common.service, common.log_level)
+    init_telemetry(common)
     app, lc = create_app(common, idp)
     serve(app, lc, common)
 

@@ -9,6 +9,8 @@ import re
 import sys
 import time
 
+from opentelemetry import trace
+
 correlation_id: contextvars.ContextVar[str] = contextvars.ContextVar("deploylab_correlation_id", default="")
 
 # A bearer token or service key that ends up in an exception message or a URL must not reach the log.
@@ -41,6 +43,9 @@ class JsonFormatter(logging.Formatter):
         cid = correlation_id.get()
         if cid:
             body["correlation_id"] = cid
+        ctx = trace.get_current_span().get_span_context()
+        if ctx.is_valid:                                   # lets a log line lead to its trace, and a trace to its log lines
+            body["trace_id"], body["span_id"] = f"{ctx.trace_id:032x}", f"{ctx.span_id:016x}"
         extra = getattr(record, "fields", None)
         if extra:
             body.update({k: (scrub(v) if isinstance(v, str) else v) for k, v in extra.items()})

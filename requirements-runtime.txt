@@ -2,3 +2,5 @@ requisite-ai[gemini,adk,otel,mcp,rag,ollama]>=0.42.0
 google-adk[a2a]>=2.11
 httpx
 python-dotenv
+opentelemetry-sdk==1.42.1                       # google-adk requires <=1.42.1
+opentelemetry-exporter-otlp-proto-http==1.42.1

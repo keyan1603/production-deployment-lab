@@ -36,7 +36,8 @@ from deploylab import logs
 from deploylab.config import Common, Env
 from deploylab.releases import Registry, ReleaseSet, admin_routes, patched_prompts
 from deploylab.remote import RemoteGatewayProvider, RemoteIdentity
-from deploylab.runtime import Lifecycle, make_app, serve
+from deploylab.telemetry import telemetry
+from deploylab.runtime import init_telemetry, Lifecycle, make_app, serve
 from identity.tokens import AuthError, verify
 from knowledge.corpus import USERS
 from tickets.data import Ticket
@@ -148,10 +149,16 @@ def create_app(settings: Settings, platform: TicketPlatform = None, remote: Remo
             outcome = await asyncio.to_thread(rs.component(release_id).handle, ticket, claims.sub, token, corr)
         except Exception:
             rs.record(release_id, role, "error", 0.0)
+            telemetry().inc("ai.ticket.outcomes", action="error", release=release_id, role=role)
             raise
         finally:
             slots.release()
         event = rs.record(release_id, role, outcome.action, outcome.latency_s)
+        tel = telemetry()
+        tel.inc("ai.ticket.outcomes", action=outcome.action, release=release_id, role=role)
+        tel.observe("ai.ticket.duration", outcome.latency_s, action=outcome.action, release=release_id)
+        if outcome.action == "held":
+            tel.inc("ai.ticket.holds", reason=(outcome.reasons[0].split(":")[0] if outcome.reasons else "unknown")[:40])
         if event:
             logs.event(log, "canary rolled back automatically", level=logging.WARNING, **{k: v for k, v in event.items() if k != "type"})
         # Shadow: only on active traffic, only if a slot is free (shadow work must never starve real work).
@@ -167,6 +174,13 @@ def create_app(settings: Settings, platform: TicketPlatform = None, remote: Remo
                    model_calls=outcome.model_calls, latency_s=round(outcome.latency_s, 2), release=release_id, role=role)
         return JSONResponse(body)
 
+    def release_info():
+        rows = [(1, {"release": rs.active, "digest": rs.meta[rs.active]["digest"], "role": "active"})]
+        if rs.canary:
+            rows.append((1, {"release": rs.canary[0], "digest": rs.meta[rs.canary[0]]["digest"], "role": "canary"}))
+        return rows
+
+    telemetry().gauge("ai.release.serving", release_info)
     lc.checks["gateway"] = lambda: _ready(settings.gateway_url)
     lc.checks["identity"] = lambda: _ready(settings.identity_url)
     lc.soft_checks["knowledge"] = lambda: _ready(settings.knowledge_url)
@@ -185,6 +199,7 @@ def main() -> None:
         log.error("%s", exc)
         raise SystemExit(2)
     logs.setup(settings.common.service, settings.common.log_level)
+    init_telemetry(settings.common)
     app, lc, rs = create_app(settings)
     try:
         serve(app, lc, settings.common)

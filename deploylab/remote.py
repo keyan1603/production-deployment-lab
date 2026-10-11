@@ -15,6 +15,7 @@ from types import SimpleNamespace
 from typing import Any, Optional, Sequence
 
 import httpx
+from opentelemetry import propagate
 from requisite.core.context import current_context
 from requisite.core.exceptions import CostLimitException, ProviderException
 from requisite.core.interfaces import ChatResponse, Message
@@ -75,6 +76,7 @@ class RemoteGatewayProvider(BaseProvider):
                 headers["X-Tenant"] = ctx.tenant
             if ctx.user:
                 headers["X-Operator"] = ctx.user
+        propagate.inject(headers)                         # traceparent: the gateway's spans join this request's trace
         return headers
 
     @staticmethod
@@ -161,6 +163,7 @@ class RemoteEmbeddingProvider(BaseEmbeddingProvider):
         headers = {"X-Service": self.service, "X-Service-Key": self._key.reveal()}
         if ctx is not None and ctx.correlation_id:
             headers["X-Correlation-Id"] = ctx.correlation_id
+        propagate.inject(headers)
         for i in range(0, len(texts), self.batch):
             try:
                 r = self._client.post(f"{self.base_url}/v1/embed", json={"texts": list(texts[i:i + self.batch])}, headers=headers)
@@ -185,6 +188,7 @@ class RemoteIdentity:
     def _post(self, path: str, body: dict) -> dict:
         ctx = current_context()
         headers = {"X-Correlation-Id": ctx.correlation_id} if ctx is not None and ctx.correlation_id else {}
+        propagate.inject(headers)
         try:
             r = self._client.post(f"{self.base_url}{path}", json=body, headers=headers)
         except httpx.TransportError as exc:

@@ -26,9 +26,11 @@ from typing import Optional
 import httpx
 
 ROOT = Path(__file__).resolve().parent.parent
-PORTS = {"identity": 8101, "gateway": 8102, "knowledge": 8103, "tickets": 8104}
+PORTS = {"identity": 8101, "gateway": 8102, "knowledge": 8103, "tickets": 8104, "monitor": 8105}
+OPTIONAL = {"monitor"}          # makes model calls on a schedule, so it only runs when asked for
 MODULES = {"identity": "services.identity_service", "gateway": "services.gateway_service",
-           "knowledge": "services.knowledge_service", "tickets": "services.ticket_service"}
+           "knowledge": "services.knowledge_service", "tickets": "services.ticket_service",
+           "monitor": "services.monitor_service"}
 _PASS_THROUGH = ("PATH", "SYSTEMROOT", "SYSTEMDRIVE", "TEMP", "TMP", "USERPROFILE", "HOMEDRIVE", "HOMEPATH",
                  "APPDATA", "LOCALAPPDATA", "HOME", "LANG", "COMSPEC", "PATHEXT", "WINDIR", "PROGRAMDATA")
 
@@ -50,7 +52,7 @@ def base_env() -> dict:
 class Stack:
     def __init__(self, run_dir: Optional[Path] = None, gemini_key: str = "", pin_light: bool = True,
                  rpm: int = 15, overrides: Optional[dict] = None, version: str = "dev", port_base: int = 8100,
-                 release: str = "r1-baseline", models: Optional[dict] = None) -> None:
+                 release: str = "r1-baseline", models: Optional[dict] = None, otel_endpoint: str = "", probe_interval_s: float = 60.0) -> None:
         self.run = Path(run_dir or ROOT / "run")
         self.secrets_dir, self.logs_dir = self.run / "secrets", self.run / "logs"
         self.gemini_key, self.pin_light, self.rpm, self.version = gemini_key, pin_light, rpm, version
@@ -59,22 +61,26 @@ class Stack:
         self.ports = {n: port_base + (p - 8100) for n, p in PORTS.items()}
         self.urls = {n: f"http://127.0.0.1:{p}" for n, p in self.ports.items()}
         self.release, self.models = release, models or {}
+        self.otel_endpoint, self.probe_interval_s = otel_endpoint, probe_interval_s
         self.admin_key = (self.secrets_dir / "admin_key").read_text() if (self.secrets_dir / "admin_key").exists() else secrets.token_urlsafe(24)
 
     # -- secrets ----------------------------------------------------------------------------------
     def _write_secrets(self) -> None:
         self.secrets_dir.mkdir(parents=True, exist_ok=True)
         (self.secrets_dir / "token_secret").write_text(secrets.token_urlsafe(48))
-        ticket_key, know_key = secrets.token_urlsafe(24), secrets.token_urlsafe(24)
+        ticket_key, know_key, mon_key = secrets.token_urlsafe(24), secrets.token_urlsafe(24), secrets.token_urlsafe(24)
+        (self.secrets_dir / "gateway_key_monitor").write_text(mon_key)
         (self.secrets_dir / "gateway_key_ticket").write_text(ticket_key)
         (self.secrets_dir / "gateway_key_knowledge").write_text(know_key)
-        (self.secrets_dir / "gateway_service_keys").write_text(f"ticket-agent={ticket_key},knowledge-agent={know_key}")
+        (self.secrets_dir / "gateway_service_keys").write_text(f"ticket-agent={ticket_key},knowledge-agent={know_key},monitor-agent={mon_key}")
         (self.secrets_dir / "gemini_key").write_text(self.gemini_key)
         (self.secrets_dir / "admin_key").write_text(self.admin_key)
 
     def _env_for(self, name: str) -> dict:
         s = self.secrets_dir
         env = base_env()
+        if self.otel_endpoint:
+            env["OTEL_EXPORTER_OTLP_ENDPOINT"] = self.otel_endpoint
         env.update({"ENVIRONMENT": "local", "APP_VERSION": self.version, "HOST": "127.0.0.1", "PORT": str(self.ports[name]),
                     "DRAIN_SECONDS": "2", "GRACE_SECONDS": "60"})
         if name == "identity":
@@ -95,6 +101,10 @@ class Stack:
             env.update({"TOKEN_SECRET_FILE": str(s / "token_secret"), "GATEWAY_URL": self.urls["gateway"],
                         "GATEWAY_SERVICE_KEY_FILE": str(s / "gateway_key_ticket"), "KNOWLEDGE_URL": self.urls["knowledge"],
                         "IDENTITY_URL": self.urls["identity"]})
+        elif name == "monitor":
+            env.update({"GATEWAY_URL": self.urls["gateway"], "GATEWAY_SERVICE_KEY_FILE": str(s / "gateway_key_monitor"),
+                        "KNOWLEDGE_URL": self.urls["knowledge"], "IDENTITY_URL": self.urls["identity"],
+                        "PROBE_INTERVAL_S": str(self.probe_interval_s), "ADMIN_KEY_FILE": str(s / "admin_key")})
         if name in ("knowledge", "tickets"):
             env.update({"ACTIVE_RELEASE": self.release, "RELEASES_DIR": str(ROOT / "releases"),
                         "ADMIN_KEY_FILE": str(s / "admin_key")})
@@ -107,7 +117,7 @@ class Stack:
             self._write_secrets()
         self.logs_dir.mkdir(parents=True, exist_ok=True)
         (self.run / "audit").mkdir(parents=True, exist_ok=True)
-        for name in names or list(MODULES):
+        for name in names or [n for n in MODULES if n not in OPTIONAL]:
             self.spawn(name)
 
     def spawn(self, name: str) -> Proc:
@@ -164,7 +174,7 @@ class Stack:
     def stop(self) -> dict:
         """Stop in dependency order: callers first, so nothing is left calling a service that is already gone."""
         out = {}
-        for name in ("tickets", "knowledge", "gateway", "identity"):
+        for name in ("monitor", "tickets", "knowledge", "gateway", "identity"):
             if name in self.procs:
                 out[name] = self.stop_one(name)
         return out

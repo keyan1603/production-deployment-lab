@@ -1,0 +1,44 @@
+{
+  "slos": [
+    {
+      "name": "ticket_availability",
+      "description": "The ticket API answers without a server error",
+      "objective": 0.99,
+      "good": "sum(rate(http_server_requests_total{service_name=\"tickets\",path=\"/tickets\",status_class!=\"5xx\"}[$W]))",
+      "total": "sum(rate(http_server_requests_total{service_name=\"tickets\",path=\"/tickets\"}[$W]))",
+      "min_rate": 0.02
+    },
+    {
+      "name": "ticket_safe_completion",
+      "description": "A ticket is released or escalated on purpose, not held for a person and not lost to an error",
+      "objective": 0.90,
+      "good": "sum(rate(ai_ticket_outcomes_total{action=~\"released|escalated\"}[$W]))",
+      "total": "sum(rate(ai_ticket_outcomes_total[$W]))",
+      "min_rate": 0.02
+    },
+    {
+      "name": "ticket_latency",
+      "description": "A ticket is finished within 60 seconds",
+      "objective": 0.95,
+      "good": "sum(rate(ai_ticket_duration_seconds_bucket{le=\"60\"}[$W]))",
+      "total": "sum(rate(ai_ticket_duration_seconds_count[$W]))",
+      "min_rate": 0.02
+    },
+    {
+      "name": "answer_quality_probe",
+      "description": "Probe questions with known right answers are answered correctly",
+      "objective": 0.95,
+      "good": "sum(rate(ai_probe_results_total{result=\"pass\"}[$W]))",
+      "total": "sum(rate(ai_probe_results_total[$W]))",
+      "min_rate": 0.005
+    },
+    {
+      "name": "no_degraded_tier",
+      "description": "Model calls are answered by a normal-tier model, not the degraded fallback",
+      "objective": 0.99,
+      "good": "sum(rate(ai_gateway_requests_total{tier!=\"degraded\"}[$W]))",
+      "total": "sum(rate(ai_gateway_requests_total[$W]))",
+      "min_rate": 0.02
+    }
+  ]
+}
