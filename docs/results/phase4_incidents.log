@@ -1,0 +1,70 @@
+services ready: {'gateway': 2.3, 'identity': 3.1, 'knowledge': 10.5, 'tickets': 12.7}
+
+======== steady state: two clients, six probes in rotation every 10 s, nothing should fire
++  188s customer view over the last two minutes: {"tickets": 37, "released": 37, "held": 0, "errors": 0, "p95_s": 7.3, "hold_reasons": {}}
++  188s alerts firing: none
++  189s cost per ticket right now (simulated tokens, published prices): $0.00130
+
+======== D1: provider 429 storm
++  189s INJECT: the simulated provider answers 429 RESOURCE_EXHAUSTED to every model
++  270s ALERT FIRING CircuitBreakerOpen after 81s
++  281s ALERT FIRING DegradedTierServing after 92s
++  281s ALERT FIRING DriftCritical after 92s
++  281s customer impact so far: {"tickets": 1, "released": 0, "held": 1, "errors": 0, "p95_s": 4.5, "hold_reasons": {"model_unavailable": 1}}
++  281s FIX
++  357s ALERT CLEARED CircuitBreakerOpen after 76s
++  615s ALERT CLEARED DriftCritical after 334s
++  641s ALERT CLEARED DegradedTierServing after 360s
++  641s customer view after the fix: {"tickets": 89, "released": 87, "held": 2, "errors": 0, "p95_s": 9.2, "hold_reasons": {"model_unavailable": 1, "served_by_degraded_tier": 1}}
+
+======== D2: slow light model
++  641s INJECT: the light model takes 40 s longer per call (the gateway times it out at 30 s)
++  779s ALERT FIRING CircuitBreakerOpen after 138s
++  779s customer impact so far: {"tickets": 10, "released": 10, "held": 0, "errors": 0, "p95_s": 73.7, "hold_reasons": {}}
++  779s FIX
++  927s ALERT CLEARED CircuitBreakerOpen after 148s
++  927s customer view after the fix: {"tickets": 35, "released": 35, "held": 0, "errors": 0, "p95_s": 9.4, "hold_reasons": {}}
+
+======== D4: the daily allowance runs out (quota guard on)
++  927s INJECT: a 300-request allowance; tickets are shed at 85 percent, probes keep going
++  928s restarting the gateway with the standard configuration
++ 1152s ALERT FIRING QuotaGuardShedding after 225s
++ 1200s ALERT FIRING QuotaNearlyExhausted after 273s
++ 1200s customer impact so far: {"tickets": 135, "released": 64, "held": 71, "errors": 0, "p95_s": 6.7, "hold_reasons": {"model_unavailable": 71}}
++ 1200s FIX
++ 1200s restarting the gateway with the standard configuration
++ 1215s ALERT CLEARED QuotaNearlyExhausted after 15s
++ 1513s ALERT CLEARED QuotaGuardShedding after 313s
++ 1513s customer view after the fix: {"tickets": 92, "released": 92, "held": 0, "errors": 0, "p95_s": 7.1, "hold_reasons": {}}
+
+======== what Alertmanager delivered to the webhook sink
+| alert                | status   | severity   | starts (UTC)   |
+|----------------------|----------|------------|----------------|
+| CircuitBreakerOpen   | firing   | ticket     | 03:34:51       |
+| CircuitBreakerOpen   | firing   | ticket     | 03:34:51       |
+| DriftCritical        | firing   | page       | 03:35:06       |
+| DegradedTierServing  | firing   | page       | 03:35:06       |
+| CircuitBreakerOpen   | firing   | ticket     | 03:34:51       |
+| CircuitBreakerOpen   | resolved | ticket     | 03:34:51       |
+| CircuitBreakerOpen   | resolved | ticket     | 03:34:51       |
+| DriftCritical        | resolved | page       | 03:35:06       |
+| DegradedTierServing  | resolved | page       | 03:35:06       |
+| CircuitBreakerOpen   | firing   | ticket     | 03:43:21       |
+| CircuitBreakerOpen   | resolved | ticket     | 03:34:51       |
+| CircuitBreakerOpen   | firing   | ticket     | 03:43:21       |
+| CircuitBreakerOpen   | resolved | ticket     | 03:43:21       |
+| QuotaGuardShedding   | firing   | page       | 03:49:36       |
+| QuotaNearlyExhausted | firing   | ticket     | 03:50:21       |
+| QuotaNearlyExhausted | resolved | ticket     | 03:50:21       |
+| QuotaGuardShedding   | resolved | page       | 03:49:36       |
+
+======== summary
+| drill   | alerts fired after                                                 | cleared after the fix                                                | customer impact during                                | after the fix   |
+|---------|--------------------------------------------------------------------|----------------------------------------------------------------------|-------------------------------------------------------|-----------------|
+| D1      | CircuitBreakerOpen 81s; DegradedTierServing 92s; DriftCritical 92s | CircuitBreakerOpen 76s; DriftCritical 334s; DegradedTierServing 360s | 1 tickets: 0 released, 1 held, 0 errors, p95 4.5s     | 87/89 released  |
+| D2      | CircuitBreakerOpen 138s                                            | CircuitBreakerOpen 148s                                              | 10 tickets: 10 released, 0 held, 0 errors, p95 73.7s  | 35/35 released  |
+| D4      | QuotaGuardShedding 225s; QuotaNearlyExhausted 273s                 | QuotaNearlyExhausted 15s; QuotaGuardShedding 313s                    | 135 tickets: 64 released, 71 held, 0 errors, p95 6.7s | 92/92 released  |
+provider saw: {"responses": {"gemini-embedding-2:200": 33, "gemini-3.5-flash-lite:200": 393}, "max_inflight": 3}
+
+stopping: {"monitor": {"exit": 0, "seconds": 2.5}, "tickets": {"exit": 0, "seconds": 2.8}, "knowledge": {"exit": 0, "seconds": 2.5}, "gateway": {"exit": 0, "seconds": 2.4}, "identity": {"exit": 0, "seconds": 2.2}}
+finished exit=0

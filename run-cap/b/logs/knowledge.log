@@ -1,0 +1,22 @@
+C:\agent\production-deployment-lab\services\knowledge_service.py:102: UserWarning: [EXPERIMENTAL] AgentCardBuilder: ADK Implementation for A2A support (A2aAgentExecutor, RemoteA2aAgent and corresponding supporting components etc.) is in experimental mode and is subject to breaking changes. A2A protocol and SDK are themselves not experimental. Once it's stable enough the experimental mode will be removed. Your feedback is welcome.
+  card = asyncio.run(AgentCardBuilder(agent=agent, rpc_url=common.public_url, security_schemes={"bearer": scheme}).build())
+C:\agent\production-deployment-lab\services\knowledge_service.py:104: UserWarning: [EXPERIMENTAL] to_a2a: ADK Implementation for A2A support (A2aAgentExecutor, RemoteA2aAgent and corresponding supporting components etc.) is in experimental mode and is subject to breaking changes. A2A protocol and SDK are themselves not experimental. Once it's stable enough the experimental mode will be removed. Your feedback is welcome.
+  app = to_a2a(agent, host=common.host, port=common.port, agent_card=card)
+C:\agent\production-deployment-lab\venv\Lib\site-packages\google\adk\a2a\utils\agent_to_a2a.py:198: UserWarning: [EXPERIMENTAL] A2aAgentExecutor: ADK Implementation for A2A support (A2aAgentExecutor, RemoteA2aAgent and corresponding supporting components etc.) is in experimental mode and is subject to breaking changes. A2A protocol and SDK are themselves not experimental. Once it's stable enough the experimental mode will be removed. Your feedback is welcome.
+  agent_executor = A2aAgentExecutor(runner=runner_or_factory)
+C:\agent\production-deployment-lab\venv\Lib\site-packages\google\adk\a2a\executor\a2a_agent_executor.py:76: UserWarning: [EXPERIMENTAL] A2aAgentExecutorConfig: ADK Implementation for A2A support (A2aAgentExecutor, RemoteA2aAgent and corresponding supporting components etc.) is in experimental mode and is subject to breaking changes. A2A protocol and SDK are themselves not experimental. Once it's stable enough the experimental mode will be removed. Your feedback is welcome.
+  self._config = config or A2aAgentExecutorConfig()
+{"ts": "2026-10-12T04:15:59.296Z", "level": "INFO", "service": "knowledge", "logger": "runtime", "msg": "starting", "environment": "local", "version": "b", "host": "127.0.0.1", "port": 8303, "drain_s": 2.0, "grace_s": 60.0}
+{"ts": "2026-10-12T04:15:59.306Z", "level": "INFO", "service": "knowledge", "logger": "uvicorn.error", "msg": "Started server process [22716]"}
+{"ts": "2026-10-12T04:15:59.306Z", "level": "INFO", "service": "knowledge", "logger": "uvicorn.error", "msg": "Waiting for application startup."}
+{"ts": "2026-10-12T04:15:59.445Z", "level": "INFO", "service": "knowledge", "logger": "uvicorn.error", "msg": "Application startup complete."}
+{"ts": "2026-10-12T04:15:59.446Z", "level": "INFO", "service": "knowledge", "logger": "uvicorn.error", "msg": "Uvicorn running on http://127.0.0.1:8303 (Press CTRL+C to quit)"}
+{"ts": "2026-10-12T04:15:59.816Z", "level": "INFO", "service": "knowledge", "logger": "runtime", "msg": "listening", "host": "127.0.0.1", "port": 8303}
+{"ts": "2026-10-12T04:16:00.426Z", "level": "INFO", "service": "knowledge", "logger": "knowledge", "msg": "index built: 14 chunks"}
+{"ts": "2026-10-12T04:16:00.426Z", "level": "INFO", "service": "knowledge", "logger": "runtime", "msg": "startup task finished", "task": "index", "attempt": 1}
+{"ts": "2026-10-12T04:19:02.287Z", "level": "INFO", "service": "knowledge", "logger": "runtime", "msg": "stop signal received, draining", "signal": 21, "drain_s": 2.0, "inflight": 0}
+{"ts": "2026-10-12T04:19:04.341Z", "level": "INFO", "service": "knowledge", "logger": "uvicorn.error", "msg": "Shutting down"}
+{"ts": "2026-10-12T04:19:04.450Z", "level": "INFO", "service": "knowledge", "logger": "uvicorn.error", "msg": "Waiting for application shutdown."}
+{"ts": "2026-10-12T04:19:04.450Z", "level": "INFO", "service": "knowledge", "logger": "uvicorn.error", "msg": "Application shutdown complete."}
+{"ts": "2026-10-12T04:19:04.450Z", "level": "INFO", "service": "knowledge", "logger": "uvicorn.error", "msg": "Finished server process [22716]"}
+{"ts": "2026-10-12T04:19:04.451Z", "level": "INFO", "service": "knowledge", "logger": "runtime", "msg": "stopped", "inflight_at_exit": 0}

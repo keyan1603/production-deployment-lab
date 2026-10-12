@@ -1,0 +1,42 @@
+
+======== E1. concurrency sweep: one ticket service, provider quota 60 requests/minute (about 15 tickets/minute at 4 calls each)
+  1 clients done: 11.2/min
+  2 clients done: 14.8/min
+  4 clients done: 16.1/min
+  8 clients done: 14.5/min
+  16 clients done: 14.7/min
+| run          |   sent |   answered |   tickets/min |   p50 s |   p95 s |   max s | HTTP codes   | outcomes         |   provider max in flight |   provider 429s |
+|--------------|--------|------------|---------------|---------|---------|---------|--------------|------------------|--------------------------|-----------------|
+| 1 client(s)  |     10 |         10 |          11.2 |    5.17 |    7.72 |     7.7 | {"200": 10}  | {"released": 10} |                        1 |               0 |
+| 2 client(s)  |     16 |         16 |          14.8 |    7.04 |   18.22 |    18.2 | {"200": 16}  | {"released": 16} |                        2 |               0 |
+| 4 client(s)  |     24 |         24 |          16.1 |   14.44 |   23.94 |    25.8 | {"200": 24}  | {"released": 24} |                        4 |               1 |
+| 8 client(s)  |     32 |         32 |          14.5 |   27.7  |   51.44 |    54.6 | {"200": 32}  | {"released": 32} |                        4 |               1 |
+| 16 client(s) |     48 |         48 |          14.7 |   52.04 |   97.99 |   103.7 | {"200": 48}  | {"released": 48} |                        7 |               2 |
+
+======== E2. scale out the ticket service: 1, 2, 3 instances behind round-robin, 12 clients
+  1 instances done: 15.7/min
+  2 instances done: 14.3/min
+  3 instances done: 16.2/min
+| run           |   sent |   answered |   tickets/min |   p50 s |   p95 s |   max s | HTTP codes   | outcomes                    |   provider max in flight |
+|---------------|--------|------------|---------------|---------|---------|---------|--------------|-----------------------------|--------------------------|
+| 1 instance(s) |     36 |         36 |          15.7 |   40.73 |   67.46 |    80.3 | {"200": 36}  | {"released": 34, "held": 2} |                        8 |
+| 2 instance(s) |     36 |         36 |          14.3 |   45.66 |   64.86 |    76.1 | {"200": 36}  | {"released": 36}            |                        8 |
+| 3 instance(s) |     36 |         36 |          16.2 |   40.92 |   68.81 |    83.2 | {"200": 36}  | {"released": 35, "held": 1} |                        8 |
+
+======== E3. scale out the GATEWAY: each instance enforces its own 60/minute limit against one 60/minute provider quota
+  one gateway done: 15.9/min, provider 429s 7
+  two gateways done: 12.9/min, provider 429s 12
+| run          |   sent |   answered |   tickets/min |   p50 s |   p95 s |   max s | HTTP codes   | outcomes                     |   provider 429s |   provider 200s |
+|--------------|--------|------------|---------------|---------|---------|---------|--------------|------------------------------|-----------------|-----------------|
+| one gateway  |     36 |         36 |          15.9 |   53.15 |   59.84 |    62.3 | {"200": 36}  | {"released": 32, "held": 4}  |               7 |             131 |
+| two gateways |     36 |         36 |          12.9 |   16.94 |  139.74 |   142.2 | {"200": 36}  | {"released": 19, "held": 17} |              12 |              92 |
+
+======== E4. the quota guard: a 140-request daily allowance runs out in the middle of a run
+  no guard done in 230s
+  guard (tickets shed at 85%) done in 86s
+| run                         |   released |   held | hold reasons              |   avg s released |   avg s held |   provider 429s |   requests that reached provider | guard ratio   |
+|-----------------------------|------------|--------|---------------------------|------------------|--------------|-----------------|----------------------------------|---------------|
+| no guard                    |         35 |     13 | {"model_unavailable": 13} |              9.3 |         42.7 |               5 |                              140 | null          |
+| guard (tickets shed at 85%) |         29 |     19 | {"model_unavailable": 19} |              9.3 |          3.8 |               0 |                              122 | 0.871         |
+final provider stats: {"requests_today": {"gemini-3.5-flash-lite": 122}, "responses": {"gemini-embedding-2:200": 14, "gemini-3.5-flash-lite:200": 122}}
+finished exit=0

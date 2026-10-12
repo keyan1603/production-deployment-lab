@@ -98,7 +98,7 @@ class RemoteGatewayProvider(BaseProvider):
         kind = payload.get("error", "") if isinstance(payload, dict) else ""
         if status == 402 or kind == "budget":
             raise CostLimitException(detail or "budget exhausted")
-        if status == 503 and kind in ("exhausted", ""):
+        if status == 503 and kind in ("exhausted", "quota_guard", ""):
             raise GatewayExhausted(detail or "gateway has no route available", provider=NAME)
         if status in (401, 403):
             raise ProviderException("the gateway rejected this service's credential", provider=NAME)

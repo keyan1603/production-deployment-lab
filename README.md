@@ -107,18 +107,84 @@ venv/Scripts/python -u scripts/phase3_study.py  # traces, metrics, dashboard, tw
 - **Offline (138 tests in the whole repo, 35 of them for this part):** a server span continues the caller's trace; metric labels stay bounded (twenty different ids become one `path` value); a log line inside a request carries the trace id; the remote clients forward the trace; the burn-rate arithmetic and windows; the probe judge and the drift verdicts for a leak, a quality drop, degraded-tier answers and a fallback rise; and a **contract test**: every metric any dashboard panel, SLO or rule mentions is one the code actually emits, converted to the name Prometheus will expose. A typo in a PromQL expression otherwise stays silent until the alert that should have fired does not.
 - **The stack, live, without models** (`scripts/obs_smoke.py`, log in the blog folder): all six components up in 0.3 to 10.5 s; a counter, a histogram and a gauge sent over OTLP appear in Prometheus under the names the SLO rules use; the span appears in Jaeger; Prometheus loads the 34 generated rules with no errors (`promtool` also accepts both rule files); Grafana provisions the dashboard and both data sources.
 
-### Not yet run live
+### The staged incidents (simulated provider)
 
-The staged incidents: a trace across all four services for a real ticket, the dashboard's panels with real data, a bad knowledge release (does the drift monitor read critical and does the quality alert fire?) and a dead gateway (which alerts fire, how long after, do they clear after the fix, does Alertmanager deliver both). They need healthy model answers, and the free tier's 500 requests per day per model (`GenerateRequestsPerDayPerProjectPerModel-FreeTier`) were used up by the earlier phases' runs. `scripts/phase3_study.py` is written and waits for the quota to reset.
+These ran against the provider simulator described under Operations, because the real API's daily quota (500 requests per model) was spent and returned `429` on the first call of the real-model attempt, which sent every probe
+to the local fallback. The services, the gateway, the SDK and the observability stack are real; the answers are scripted. A run against the real model is still worth doing when quota allows.
 
-Two properties of the method are visible without any run. A 90 percent objective has an error budget of 10 percent, so its largest possible burn rate is 10, below the 14.4 page threshold: the safe-completion SLO can only ever raise the ticket-level alert, never a page, while the 95 percent probe SLO (largest burn 20) can page. And a gateway that is down stops emitting its own metrics, so its failure shows up in its callers' errors and in readiness, not in its own breaker gauge.
+- **One ticket is one trace across all four services.** A refund ticket that asks for the approval threshold produced a single trace of 111 spans: 32 in the ticket service, 1 in the identity service (the token exchange), 11 in the
+  gateway (including the knowledge service's embedding and chat calls) and 67 in the knowledge service (the A2A server's own spans). The trace id appears in log lines of all four services.
+- **The dashboard.** All 14 panels' queries were run through Grafana's own Prometheus data source. 12 returned data for every query, including the panel fed by Requisite's own `requisite.agent.*` metrics; the burn-rate panel showed 3 of its 5 objectives (the latency and probe ratios sit under the traffic
+  floor in a quiet run, by design) and the alerts table was empty because nothing was firing.
+- **Incident A, quality:** a bad knowledge release (`r3-helpful-answerer`) activated without the gate. `DriftCritical` fired after 144 s with the finding `correct_rate: critical`; the probes that failed were exactly the restricted and
+  no-answer questions, which came back as uncited general knowledge and were held; no restricted fact leaked. A rollback restored it, and the alert cleared 401 s later (the 3-minute look-back plus the probe window). No probe-quality burn-rate
+  alert fired: with 3 of 6 probes failing the burn is 8, below the 14.4 page threshold, and the ticket-level windows are longer than this incident.
+- **Incident B, dependency:** the gateway process killed. `SLOBurn_ticket_safe_completion_ticket` fired after 127 s and cleared 164 s after the restart. At that moment the **availability** error ratio was 0 (a held ticket is a `200`),
+  the safe-completion ratio 1.0 and the probe error ratio 0.25: the objective that counts a held ticket as a failure saw the outage, the availability objective did not. The ticket service's readiness probe still read ready: readiness is
+  answered from the last result and refreshed in the background, so the first probe after a long gap reads the previous state (a steady probe interval would not show it).
+- **Alertmanager delivered** firing and resolved notifications for each alert to the webhook sink.
+
+## Operations: capacity, guards, runbooks, drills
+
+**Every result in this section came from a provider simulator, not the real API.** The free tier allows 500 requests a day per model, which one load sweep would spend in a minute, and a real provider cannot be made to fail
+on demand. `sim/gemini_sim.py` answers in the Gemini wire format (the real Google SDK is pointed at it with `GOOGLE_GEMINI_BASE_URL`), enforces per-model minute and day quotas in the real error shape, has log-normal latency
+and switchable faults (429 storm, 500s, slow, garbage, black hole). Its answers are scripted: triage by keywords, a tool-call flow for the resolver, source echoing for the knowledge assistant, and sensitivity to the two prompt
+changes the drills use. Everything else is real: the four services and the monitor, the SDK, the gateway with its breakers and guards, and the observability stack with the generated SLO rules at minute-scale windows. These
+numbers say how the system behaves against a rate-limited, failing provider. They say nothing about model quality.
+
+| Piece | What it does |
+|---|---|
+| `deploylab/guards.py`, in the gateway service | **quota guard**: counts requests per model per provider day (kept across restarts) and refuses callers at per-caller thresholds, so low-priority work stops first and the last of the allowance goes to the traffic that matters; **spend guard**: a daily dollar cap with exempt callers |
+| `POST /admin/freeze` on the ticket service | the kill switch: no new tickets, work in flight finishes, `Retry-After` on the refusal; also an alert, because a forgotten freeze is an outage |
+| `docs/runbooks/` | one page per alert family: what it means, who is affected, the first five minutes (commands to paste), likely causes, when to escalate, afterwards. A test checks that every alert has a page, every endpoint a page calls exists in the services, and every metric a page mentions is emitted |
+| `deploylab/capacity.py`, `docs/capacity.md` | the capacity arithmetic and scaling policy, tested against the measurements below |
+| `docs/decisions.md` | seven operations decision records, each tied to a measurement |
+
+```bash
+venv/Scripts/python -u scripts/phase4_capacity.py      # four capacity experiments against the simulator
+venv/Scripts/python -u scripts/phase4_incidents.py     # four incident drills, with the observability stack and background traffic
+```
+
+### Capacity (provider quota 60 requests a minute, about four calls per ticket, so a ceiling near 15 tickets a minute)
+
+| Experiment | Result |
+|---|---|
+| One ticket service, 1 / 2 / 4 / 8 / 16 clients | 11.2 / 14.8 / 16.1 / 14.5 / 14.7 tickets a minute. **Throughput stops at 2 clients**; the median wait grows 5 / 7 / 14 / 28 / 52 s and the 95th percentile reaches 98 s. Little's law (16 clients at 14.7 a minute: 65 s average) matches |
+| 1 / 2 / 3 ticket-service instances, 12 clients | 15.7 / 14.3 / 16.2 tickets a minute, medians 41 / 46 / 41 s. **More instances add nothing**: they share one quota |
+| 1 versus 2 gateways (each with its own correct limiter) | 15.9 versus 12.9 tickets a minute, **17 of 36 held against 4**, 95th percentile 140 s against 60 s. **A second gateway makes it worse**: two limiters cannot see each other and together ask the provider for twice what it allows |
+| A 140-request allowance runs out mid-run | no guard: 35 released, 13 held after 43 s on average, 5 provider refusals; guard at 85 percent: 29 released, 19 held after **3.8 s**, no refusals, 15 percent of the allowance kept for the knowledge assistant and the probes |
+
+A first run of the gateway experiment showed two gateways as twice as fast (30 tickets a minute). The simulated heavy model had the light model's generous limits, so the extra throughput was calls spilling onto the expensive
+tier and the local fallback (10 of 36 held). The real free tier gives the heavy model 20 requests a day; the final run uses that, and the first is kept as evidence of how easily scaling looks free.
+
+### Incident drills (background traffic through every drill)
+
+| Drill | What was injected | Alerts, seconds after injection | Customer impact | After the fix |
+|---|---|---|---|---|
+| D1 | the provider answers 429 to every model | `CircuitBreakerOpen` 81, `DegradedTierServing` 92, `DriftCritical` 92 | tickets served by the local fallback are held (11 of 12 in the first, longer run) | alerts clear after 76 s, 334 s, 360 s; 87 of 89 later tickets released |
+| D2 | the light model takes 40 s longer per call | `CircuitBreakerOpen` 138 | 10 of 10 released, 95th percentile 74 s: failover hides a slow provider from customers | cleared after 148 s |
+| D3 (first run, unaffected by the later fixes) | a gateway setting sends every request to the heavy tier (no release gate ran) | `CostPerTicketHigh` 298 | **none**: 54 of 54 released, 95th percentile 13 s | cleared after 154 s |
+| D4 | a 300-request daily allowance, guard on | `QuotaGuardShedding` 225, `QuotaNearlyExhausted` 273 | 64 released, 71 held in under 7 s with a clear reason, no provider refusals | 92 of 92 released after the allowance resets |
+
+What the drills taught, beyond the table:
+
+- **A flapping signal defeats `for:`.** A circuit breaker re-closes to half-open every 30 s to test its route, so "open for a minute" never held: in the first run `CircuitBreakerOpen` did not fire in seven minutes of a 429 storm.
+  And the drift verdict paged and resolved four times in one outage. Both alerts now look back (`max_over_time`, 2 and 3 minutes). The price is a later clear: `DriftCritical` cleared 334 s after the fix.
+- **D3 is invisible to every quality and availability objective.** Nothing was slower, wrong or held; only the cost per ticket moved. The only thing that saw it was the cost alert, and a configuration change does not go through the release gate.
+- **Alerts built on `rate(...[5m])` clear about five minutes after the fix**, however fast the fix was.
+- **The safe-completion SLO never fired in the 429 storm.** Slow failures mean few tickets, and a long window dilutes them with the good minutes before. Burn-rate alerts depend on traffic volume.
+- **Quota counts survive a restart**, as designed. A first run of D4 reset the counters before the old gateway had finished stopping; the old process wrote its high count back and the new one refused everything from the start.
+  The harness now stops first and resets after.
+
+Limits: a simulated provider; two background clients; one machine; thresholds (shed at 85 percent, the cost alert at three times $0.0011, burn-rate windows at minute scale) are calibrated for the lab, not for production traffic;
+latencies come from the simulator's log-normal model.
 
 ## Run it
 
 ```bash
 python -m venv venv && venv/Scripts/pip install -r requirements.txt
 cp .env.example .env                       # add GEMINI_API_KEY
-venv/Scripts/python -m pytest tests -q     # 138 offline tests, no network
+venv/Scripts/python -m pytest tests -q     # 173 offline tests, no network
 venv/Scripts/python -u scripts/phase1_study.py   # real run: four OS processes, real models
 
 # the same system as containers (Podman and podman-compose, both open source)

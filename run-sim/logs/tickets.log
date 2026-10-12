@@ -1,0 +1,22 @@
+{"ts": "2026-10-12T02:11:31.454Z", "level": "INFO", "service": "tickets", "logger": "runtime", "msg": "starting", "environment": "local", "version": "sim", "host": "127.0.0.1", "port": 8304, "drain_s": 2.0, "grace_s": 60.0}
+{"ts": "2026-10-12T02:11:31.467Z", "level": "INFO", "service": "tickets", "logger": "uvicorn.error", "msg": "Started server process [25056]"}
+{"ts": "2026-10-12T02:11:31.467Z", "level": "INFO", "service": "tickets", "logger": "uvicorn.error", "msg": "Waiting for application startup."}
+{"ts": "2026-10-12T02:11:31.467Z", "level": "INFO", "service": "tickets", "logger": "uvicorn.error", "msg": "Application startup complete."}
+{"ts": "2026-10-12T02:11:31.467Z", "level": "INFO", "service": "tickets", "logger": "uvicorn.error", "msg": "Uvicorn running on http://127.0.0.1:8304 (Press CTRL+C to quit)"}
+{"ts": "2026-10-12T02:11:32.778Z", "level": "INFO", "service": "tickets", "logger": "runtime", "msg": "listening", "host": "127.0.0.1", "port": 8304}
+{"ts": "2026-10-12T02:11:48.408Z", "level": "INFO", "service": "tickets", "logger": "tickets", "msg": "ticket handled", "correlation_id": "bc279043b5b7", "ticket": "T01", "operator": "sam", "action": "released", "model_calls": 4, "latency_s": 13.6, "release": "r1-baseline", "role": "active"}
+{"ts": "2026-10-12T02:11:48.409Z", "level": "INFO", "service": "tickets", "logger": "runtime", "msg": "request", "correlation_id": "bc279043b5b7", "method": "POST", "path": "/tickets", "status": 200, "ms": 13604.6}
+{"ts": "2026-10-12T02:11:53.359Z", "level": "INFO", "service": "tickets", "logger": "tickets", "msg": "ticket handled", "correlation_id": "da8b6be22a15", "ticket": "T02", "operator": "sam", "action": "released", "model_calls": 4, "latency_s": 4.5, "release": "r1-baseline", "role": "active"}
+{"ts": "2026-10-12T02:11:53.360Z", "level": "INFO", "service": "tickets", "logger": "runtime", "msg": "request", "correlation_id": "da8b6be22a15", "method": "POST", "path": "/tickets", "status": 200, "ms": 4502.9}
+{"ts": "2026-10-12T02:11:57.690Z", "level": "INFO", "service": "tickets", "logger": "tickets", "msg": "ticket handled", "correlation_id": "2eab9ab2cf16", "ticket": "T03", "operator": "sam", "action": "released", "model_calls": 4, "latency_s": 3.89, "release": "r1-baseline", "role": "active"}
+{"ts": "2026-10-12T02:11:57.690Z", "level": "INFO", "service": "tickets", "logger": "runtime", "msg": "request", "correlation_id": "2eab9ab2cf16", "method": "POST", "path": "/tickets", "status": 200, "ms": 3886.2}
+{"ts": "2026-10-12T02:12:42.005Z", "level": "INFO", "service": "tickets", "logger": "tickets", "msg": "ticket handled", "correlation_id": "4e1d34094b93", "ticket": "T04", "operator": "sam", "action": "released", "model_calls": 4, "latency_s": 43.89, "release": "r1-baseline", "role": "active"}
+{"ts": "2026-10-12T02:12:42.005Z", "level": "INFO", "service": "tickets", "logger": "runtime", "msg": "request", "correlation_id": "4e1d34094b93", "method": "POST", "path": "/tickets", "status": 200, "ms": 43886.5}
+{"ts": "2026-10-12T02:12:42.442Z", "level": "INFO", "service": "tickets", "logger": "tickets", "msg": "ticket handled", "correlation_id": "5250fe4b7ed6", "ticket": "T08", "operator": "sam", "action": "escalated", "model_calls": 0, "latency_s": 0.0, "release": "r1-baseline", "role": "active"}
+{"ts": "2026-10-12T02:12:42.443Z", "level": "INFO", "service": "tickets", "logger": "runtime", "msg": "request", "correlation_id": "5250fe4b7ed6", "method": "POST", "path": "/tickets", "status": 200, "ms": 0.7}
+{"ts": "2026-10-12T02:12:53.274Z", "level": "INFO", "service": "tickets", "logger": "runtime", "msg": "stop signal received, draining", "signal": 21, "drain_s": 2.0, "inflight": 0}
+{"ts": "2026-10-12T02:12:55.332Z", "level": "INFO", "service": "tickets", "logger": "uvicorn.error", "msg": "Shutting down"}
+{"ts": "2026-10-12T02:12:55.442Z", "level": "INFO", "service": "tickets", "logger": "uvicorn.error", "msg": "Waiting for application shutdown."}
+{"ts": "2026-10-12T02:12:55.442Z", "level": "INFO", "service": "tickets", "logger": "uvicorn.error", "msg": "Application shutdown complete."}
+{"ts": "2026-10-12T02:12:55.442Z", "level": "INFO", "service": "tickets", "logger": "uvicorn.error", "msg": "Finished server process [25056]"}
+{"ts": "2026-10-12T02:12:55.445Z", "level": "INFO", "service": "tickets", "logger": "runtime", "msg": "stopped", "inflight_at_exit": 0}

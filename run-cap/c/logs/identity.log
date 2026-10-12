@@ -1,0 +1,108 @@
+{"ts": "2026-10-12T04:23:19.208Z", "level": "INFO", "service": "identity", "logger": "runtime", "msg": "starting", "environment": "local", "version": "c", "host": "127.0.0.1", "port": 8301, "drain_s": 2.0, "grace_s": 60.0}
+{"ts": "2026-10-12T04:23:19.245Z", "level": "INFO", "service": "identity", "logger": "uvicorn.error", "msg": "Started server process [7380]"}
+{"ts": "2026-10-12T04:23:19.245Z", "level": "INFO", "service": "identity", "logger": "uvicorn.error", "msg": "Waiting for application startup."}
+{"ts": "2026-10-12T04:23:19.246Z", "level": "INFO", "service": "identity", "logger": "uvicorn.error", "msg": "Application startup complete."}
+{"ts": "2026-10-12T04:23:19.246Z", "level": "INFO", "service": "identity", "logger": "uvicorn.error", "msg": "Uvicorn running on http://127.0.0.1:8301 (Press CTRL+C to quit)"}
+{"ts": "2026-10-12T04:23:19.246Z", "level": "INFO", "service": "identity", "logger": "runtime", "msg": "listening", "host": "127.0.0.1", "port": 8301}
+{"ts": "2026-10-12T04:23:24.076Z", "level": "INFO", "service": "identity", "logger": "identity", "msg": "login", "correlation_id": "2afafaad01e9", "subject": "sam", "audience": "ticket-agent"}
+{"ts": "2026-10-12T04:23:24.077Z", "level": "INFO", "service": "identity", "logger": "runtime", "msg": "request", "correlation_id": "2afafaad01e9", "method": "POST", "path": "/login", "status": 200, "ms": 0.8}
+{"ts": "2026-10-12T04:23:24.089Z", "level": "INFO", "service": "identity", "logger": "identity", "msg": "login", "correlation_id": "4bf6a5e8d243", "subject": "sam", "audience": "ticket-agent"}
+{"ts": "2026-10-12T04:23:24.089Z", "level": "INFO", "service": "identity", "logger": "runtime", "msg": "request", "correlation_id": "4bf6a5e8d243", "method": "POST", "path": "/login", "status": 200, "ms": 0.7}
+{"ts": "2026-10-12T04:23:24.089Z", "level": "INFO", "service": "identity", "logger": "identity", "msg": "login", "correlation_id": "81b2a589857f", "subject": "sam", "audience": "ticket-agent"}
+{"ts": "2026-10-12T04:23:24.090Z", "level": "INFO", "service": "identity", "logger": "runtime", "msg": "request", "correlation_id": "81b2a589857f", "method": "POST", "path": "/login", "status": 200, "ms": 0.3}
+{"ts": "2026-10-12T04:23:24.090Z", "level": "INFO", "service": "identity", "logger": "identity", "msg": "login", "correlation_id": "5885d0d7f247", "subject": "sam", "audience": "ticket-agent"}
+{"ts": "2026-10-12T04:23:24.090Z", "level": "INFO", "service": "identity", "logger": "runtime", "msg": "request", "correlation_id": "5885d0d7f247", "method": "POST", "path": "/login", "status": 200, "ms": 1.2}
+{"ts": "2026-10-12T04:23:36.200Z", "level": "INFO", "service": "identity", "logger": "identity", "msg": "login", "correlation_id": "6a94f90fd4d6", "subject": "sam", "audience": "ticket-agent"}
+{"ts": "2026-10-12T04:23:36.200Z", "level": "INFO", "service": "identity", "logger": "runtime", "msg": "request", "correlation_id": "6a94f90fd4d6", "method": "POST", "path": "/login", "status": 200, "ms": 0.5}
+{"ts": "2026-10-12T04:23:36.252Z", "level": "INFO", "service": "identity", "logger": "identity", "msg": "login", "correlation_id": "d0f1956daccf", "subject": "sam", "audience": "ticket-agent"}
+{"ts": "2026-10-12T04:23:36.253Z", "level": "INFO", "service": "identity", "logger": "runtime", "msg": "request", "correlation_id": "d0f1956daccf", "method": "POST", "path": "/login", "status": 200, "ms": 0.9}
+{"ts": "2026-10-12T04:23:37.289Z", "level": "INFO", "service": "identity", "logger": "identity", "msg": "login", "correlation_id": "ee8887ddd6b8", "subject": "sam", "audience": "ticket-agent"}
+{"ts": "2026-10-12T04:23:37.290Z", "level": "INFO", "service": "identity", "logger": "runtime", "msg": "request", "correlation_id": "ee8887ddd6b8", "method": "POST", "path": "/login", "status": 200, "ms": 0.6}
+{"ts": "2026-10-12T04:23:37.632Z", "level": "INFO", "service": "identity", "logger": "identity", "msg": "login", "correlation_id": "888750ea8fba", "subject": "sam", "audience": "ticket-agent"}
+{"ts": "2026-10-12T04:23:37.633Z", "level": "INFO", "service": "identity", "logger": "runtime", "msg": "request", "correlation_id": "888750ea8fba", "method": "POST", "path": "/login", "status": 200, "ms": 0.7}
+{"ts": "2026-10-12T04:23:44.408Z", "level": "INFO", "service": "identity", "logger": "identity", "msg": "login", "correlation_id": "a55b4bc227d8", "subject": "sam", "audience": "ticket-agent"}
+{"ts": "2026-10-12T04:23:44.408Z", "level": "INFO", "service": "identity", "logger": "runtime", "msg": "request", "correlation_id": "a55b4bc227d8", "method": "POST", "path": "/login", "status": 200, "ms": 0.6}
+{"ts": "2026-10-12T04:23:45.369Z", "level": "INFO", "service": "identity", "logger": "identity", "msg": "login", "correlation_id": "52d7c3195be9", "subject": "sam", "audience": "ticket-agent"}
+{"ts": "2026-10-12T04:23:45.370Z", "level": "INFO", "service": "identity", "logger": "runtime", "msg": "request", "correlation_id": "52d7c3195be9", "method": "POST", "path": "/login", "status": 200, "ms": 0.9}
+{"ts": "2026-10-12T04:23:46.220Z", "level": "INFO", "service": "identity", "logger": "identity", "msg": "login", "correlation_id": "72fdfccf8e57", "subject": "sam", "audience": "ticket-agent"}
+{"ts": "2026-10-12T04:23:46.221Z", "level": "INFO", "service": "identity", "logger": "runtime", "msg": "request", "correlation_id": "72fdfccf8e57", "method": "POST", "path": "/login", "status": 200, "ms": 0.6}
+{"ts": "2026-10-12T04:23:47.703Z", "level": "INFO", "service": "identity", "logger": "identity", "msg": "login", "correlation_id": "79b483fb8187", "subject": "sam", "audience": "ticket-agent"}
+{"ts": "2026-10-12T04:23:47.704Z", "level": "INFO", "service": "identity", "logger": "runtime", "msg": "request", "correlation_id": "79b483fb8187", "method": "POST", "path": "/login", "status": 200, "ms": 0.6}
+{"ts": "2026-10-12T04:23:52.213Z", "level": "INFO", "service": "identity", "logger": "identity", "msg": "login", "correlation_id": "0ed4f60947ce", "subject": "sam", "audience": "ticket-agent"}
+{"ts": "2026-10-12T04:23:52.214Z", "level": "INFO", "service": "identity", "logger": "runtime", "msg": "request", "correlation_id": "0ed4f60947ce", "method": "POST", "path": "/login", "status": 200, "ms": 0.5}
+{"ts": "2026-10-12T04:23:52.933Z", "level": "INFO", "service": "identity", "logger": "identity", "msg": "login", "correlation_id": "cddd7b0dbc1e", "subject": "sam", "audience": "ticket-agent"}
+{"ts": "2026-10-12T04:23:52.933Z", "level": "INFO", "service": "identity", "logger": "runtime", "msg": "request", "correlation_id": "cddd7b0dbc1e", "method": "POST", "path": "/login", "status": 200, "ms": 0.5}
+{"ts": "2026-10-12T04:23:55.877Z", "level": "INFO", "service": "identity", "logger": "identity", "msg": "login", "correlation_id": "03d92b4fb2bd", "subject": "sam", "audience": "ticket-agent"}
+{"ts": "2026-10-12T04:23:55.878Z", "level": "INFO", "service": "identity", "logger": "runtime", "msg": "request", "correlation_id": "03d92b4fb2bd", "method": "POST", "path": "/login", "status": 200, "ms": 0.6}
+{"ts": "2026-10-12T04:23:55.882Z", "level": "INFO", "service": "identity", "logger": "identity", "msg": "login", "correlation_id": "c25e2625fb52", "subject": "sam", "audience": "ticket-agent"}
+{"ts": "2026-10-12T04:23:55.883Z", "level": "INFO", "service": "identity", "logger": "runtime", "msg": "request", "correlation_id": "c25e2625fb52", "method": "POST", "path": "/login", "status": 200, "ms": 1.4}
+{"ts": "2026-10-12T04:24:01.054Z", "level": "INFO", "service": "identity", "logger": "identity", "msg": "login", "correlation_id": "0483e032f636", "subject": "sam", "audience": "ticket-agent"}
+{"ts": "2026-10-12T04:24:01.055Z", "level": "INFO", "service": "identity", "logger": "runtime", "msg": "request", "correlation_id": "0483e032f636", "method": "POST", "path": "/login", "status": 200, "ms": 0.5}
+{"ts": "2026-10-12T04:24:02.478Z", "level": "INFO", "service": "identity", "logger": "identity", "msg": "login", "correlation_id": "077833580898", "subject": "sam", "audience": "ticket-agent"}
+{"ts": "2026-10-12T04:24:02.478Z", "level": "INFO", "service": "identity", "logger": "runtime", "msg": "request", "correlation_id": "077833580898", "method": "POST", "path": "/login", "status": 200, "ms": 0.5}
+{"ts": "2026-10-12T04:24:03.609Z", "level": "INFO", "service": "identity", "logger": "identity", "msg": "login", "correlation_id": "297a6f55ed3d", "subject": "sam", "audience": "ticket-agent"}
+{"ts": "2026-10-12T04:24:03.609Z", "level": "INFO", "service": "identity", "logger": "runtime", "msg": "request", "correlation_id": "297a6f55ed3d", "method": "POST", "path": "/login", "status": 200, "ms": 0.6}
+{"ts": "2026-10-12T04:24:06.279Z", "level": "INFO", "service": "identity", "logger": "identity", "msg": "login", "correlation_id": "beaa7b706545", "subject": "sam", "audience": "ticket-agent"}
+{"ts": "2026-10-12T04:24:06.279Z", "level": "INFO", "service": "identity", "logger": "runtime", "msg": "request", "correlation_id": "beaa7b706545", "method": "POST", "path": "/login", "status": 200, "ms": 0.6}
+{"ts": "2026-10-12T04:24:10.747Z", "level": "INFO", "service": "identity", "logger": "identity", "msg": "login", "correlation_id": "d62200b61e28", "subject": "sam", "audience": "ticket-agent"}
+{"ts": "2026-10-12T04:24:10.748Z", "level": "INFO", "service": "identity", "logger": "runtime", "msg": "request", "correlation_id": "d62200b61e28", "method": "POST", "path": "/login", "status": 200, "ms": 0.7}
+{"ts": "2026-10-12T04:24:11.900Z", "level": "INFO", "service": "identity", "logger": "identity", "msg": "login", "correlation_id": "7b86408f25c6", "subject": "sam", "audience": "ticket-agent"}
+{"ts": "2026-10-12T04:24:11.900Z", "level": "INFO", "service": "identity", "logger": "runtime", "msg": "request", "correlation_id": "7b86408f25c6", "method": "POST", "path": "/login", "status": 200, "ms": 0.6}
+{"ts": "2026-10-12T04:24:12.667Z", "level": "INFO", "service": "identity", "logger": "identity", "msg": "login", "correlation_id": "68cc8b5ebbe6", "subject": "sam", "audience": "ticket-agent"}
+{"ts": "2026-10-12T04:24:12.667Z", "level": "INFO", "service": "identity", "logger": "runtime", "msg": "request", "correlation_id": "68cc8b5ebbe6", "method": "POST", "path": "/login", "status": 200, "ms": 0.5}
+{"ts": "2026-10-12T04:24:15.036Z", "level": "INFO", "service": "identity", "logger": "identity", "msg": "login", "correlation_id": "fd16d96ba9c8", "subject": "sam", "audience": "ticket-agent"}
+{"ts": "2026-10-12T04:24:15.037Z", "level": "INFO", "service": "identity", "logger": "runtime", "msg": "request", "correlation_id": "fd16d96ba9c8", "method": "POST", "path": "/login", "status": 200, "ms": 1.2}
+{"ts": "2026-10-12T04:24:18.969Z", "level": "INFO", "service": "identity", "logger": "identity", "msg": "login", "correlation_id": "d8e7bbbe1ca1", "subject": "sam", "audience": "ticket-agent"}
+{"ts": "2026-10-12T04:24:18.969Z", "level": "INFO", "service": "identity", "logger": "runtime", "msg": "request", "correlation_id": "d8e7bbbe1ca1", "method": "POST", "path": "/login", "status": 200, "ms": 0.5}
+{"ts": "2026-10-12T04:24:20.706Z", "level": "INFO", "service": "identity", "logger": "identity", "msg": "login", "correlation_id": "1924fa5f0c87", "subject": "sam", "audience": "ticket-agent"}
+{"ts": "2026-10-12T04:24:20.706Z", "level": "INFO", "service": "identity", "logger": "runtime", "msg": "request", "correlation_id": "1924fa5f0c87", "method": "POST", "path": "/login", "status": 200, "ms": 0.8}
+{"ts": "2026-10-12T04:24:21.358Z", "level": "INFO", "service": "identity", "logger": "identity", "msg": "login", "correlation_id": "3d11ad8c6bc5", "subject": "sam", "audience": "ticket-agent"}
+{"ts": "2026-10-12T04:24:21.358Z", "level": "INFO", "service": "identity", "logger": "runtime", "msg": "request", "correlation_id": "3d11ad8c6bc5", "method": "POST", "path": "/login", "status": 200, "ms": 0.5}
+{"ts": "2026-10-12T04:24:22.855Z", "level": "INFO", "service": "identity", "logger": "identity", "msg": "login", "correlation_id": "bac0e187bc30", "subject": "sam", "audience": "ticket-agent"}
+{"ts": "2026-10-12T04:24:22.855Z", "level": "INFO", "service": "identity", "logger": "runtime", "msg": "request", "correlation_id": "bac0e187bc30", "method": "POST", "path": "/login", "status": 200, "ms": 0.5}
+{"ts": "2026-10-12T04:24:27.275Z", "level": "INFO", "service": "identity", "logger": "identity", "msg": "login", "correlation_id": "4c9da57f5d1d", "subject": "sam", "audience": "ticket-agent"}
+{"ts": "2026-10-12T04:24:27.275Z", "level": "INFO", "service": "identity", "logger": "runtime", "msg": "request", "correlation_id": "4c9da57f5d1d", "method": "POST", "path": "/login", "status": 200, "ms": 0.7}
+{"ts": "2026-10-12T04:24:28.446Z", "level": "INFO", "service": "identity", "logger": "identity", "msg": "login", "correlation_id": "a7fd28b599f1", "subject": "sam", "audience": "ticket-agent"}
+{"ts": "2026-10-12T04:24:28.447Z", "level": "INFO", "service": "identity", "logger": "runtime", "msg": "request", "correlation_id": "a7fd28b599f1", "method": "POST", "path": "/login", "status": 200, "ms": 0.5}
+{"ts": "2026-10-12T04:24:30.086Z", "level": "INFO", "service": "identity", "logger": "identity", "msg": "login", "correlation_id": "17e17c3bf9c5", "subject": "sam", "audience": "ticket-agent"}
+{"ts": "2026-10-12T04:24:30.086Z", "level": "INFO", "service": "identity", "logger": "runtime", "msg": "request", "correlation_id": "17e17c3bf9c5", "method": "POST", "path": "/login", "status": 200, "ms": 0.7}
+{"ts": "2026-10-12T04:24:31.979Z", "level": "INFO", "service": "identity", "logger": "identity", "msg": "login", "correlation_id": "8681ca664203", "subject": "sam", "audience": "ticket-agent"}
+{"ts": "2026-10-12T04:24:31.979Z", "level": "INFO", "service": "identity", "logger": "runtime", "msg": "request", "correlation_id": "8681ca664203", "method": "POST", "path": "/login", "status": 200, "ms": 0.5}
+{"ts": "2026-10-12T04:24:35.523Z", "level": "INFO", "service": "identity", "logger": "identity", "msg": "login", "correlation_id": "086a7c3dd7a4", "subject": "sam", "audience": "ticket-agent"}
+{"ts": "2026-10-12T04:24:35.523Z", "level": "INFO", "service": "identity", "logger": "runtime", "msg": "request", "correlation_id": "086a7c3dd7a4", "method": "POST", "path": "/login", "status": 200, "ms": 0.7}
+{"ts": "2026-10-12T04:24:36.477Z", "level": "INFO", "service": "identity", "logger": "identity", "msg": "login", "correlation_id": "fe3b67154f85", "subject": "sam", "audience": "ticket-agent"}
+{"ts": "2026-10-12T04:24:36.478Z", "level": "INFO", "service": "identity", "logger": "runtime", "msg": "request", "correlation_id": "fe3b67154f85", "method": "POST", "path": "/login", "status": 200, "ms": 0.9}
+{"ts": "2026-10-12T04:24:36.502Z", "level": "INFO", "service": "identity", "logger": "identity", "msg": "login", "correlation_id": "54ef2963de56", "subject": "sam", "audience": "ticket-agent"}
+{"ts": "2026-10-12T04:24:36.502Z", "level": "INFO", "service": "identity", "logger": "runtime", "msg": "request", "correlation_id": "54ef2963de56", "method": "POST", "path": "/login", "status": 200, "ms": 0.6}
+{"ts": "2026-10-12T04:24:36.565Z", "level": "INFO", "service": "identity", "logger": "identity", "msg": "login", "correlation_id": "34ac9b3fb73f", "subject": "sam", "audience": "ticket-agent"}
+{"ts": "2026-10-12T04:24:36.566Z", "level": "INFO", "service": "identity", "logger": "runtime", "msg": "request", "correlation_id": "34ac9b3fb73f", "method": "POST", "path": "/login", "status": 200, "ms": 1.0}
+{"ts": "2026-10-12T04:24:39.555Z", "level": "INFO", "service": "identity", "logger": "identity", "msg": "login", "correlation_id": "9ea7724afd8d", "subject": "sam", "audience": "ticket-agent"}
+{"ts": "2026-10-12T04:24:39.556Z", "level": "INFO", "service": "identity", "logger": "runtime", "msg": "request", "correlation_id": "9ea7724afd8d", "method": "POST", "path": "/login", "status": 200, "ms": 0.7}
+{"ts": "2026-10-12T04:24:39.565Z", "level": "INFO", "service": "identity", "logger": "identity", "msg": "login", "correlation_id": "06ccb4d2356b", "subject": "sam", "audience": "ticket-agent"}
+{"ts": "2026-10-12T04:24:39.566Z", "level": "INFO", "service": "identity", "logger": "runtime", "msg": "request", "correlation_id": "06ccb4d2356b", "method": "POST", "path": "/login", "status": 200, "ms": 0.5}
+{"ts": "2026-10-12T04:24:39.584Z", "level": "INFO", "service": "identity", "logger": "identity", "msg": "login", "correlation_id": "c45581c3428b", "subject": "sam", "audience": "ticket-agent"}
+{"ts": "2026-10-12T04:24:39.585Z", "level": "INFO", "service": "identity", "logger": "runtime", "msg": "request", "correlation_id": "c45581c3428b", "method": "POST", "path": "/login", "status": 200, "ms": 0.6}
+{"ts": "2026-10-12T04:24:39.609Z", "level": "INFO", "service": "identity", "logger": "identity", "msg": "login", "correlation_id": "80a5458a24fd", "subject": "sam", "audience": "ticket-agent"}
+{"ts": "2026-10-12T04:24:39.609Z", "level": "INFO", "service": "identity", "logger": "runtime", "msg": "request", "correlation_id": "80a5458a24fd", "method": "POST", "path": "/login", "status": 200, "ms": 0.5}
+{"ts": "2026-10-12T04:24:42.957Z", "level": "INFO", "service": "identity", "logger": "identity", "msg": "login", "correlation_id": "17e5fc4c17e6", "subject": "sam", "audience": "ticket-agent"}
+{"ts": "2026-10-12T04:24:42.957Z", "level": "INFO", "service": "identity", "logger": "runtime", "msg": "request", "correlation_id": "17e5fc4c17e6", "method": "POST", "path": "/login", "status": 200, "ms": 0.8}
+{"ts": "2026-10-12T04:24:43.018Z", "level": "INFO", "service": "identity", "logger": "identity", "msg": "login", "correlation_id": "0b4fe2fff89b", "subject": "sam", "audience": "ticket-agent"}
+{"ts": "2026-10-12T04:24:43.018Z", "level": "INFO", "service": "identity", "logger": "runtime", "msg": "request", "correlation_id": "0b4fe2fff89b", "method": "POST", "path": "/login", "status": 200, "ms": 0.6}
+{"ts": "2026-10-12T04:24:43.034Z", "level": "INFO", "service": "identity", "logger": "identity", "msg": "login", "correlation_id": "2a8bb4a7d24b", "subject": "sam", "audience": "ticket-agent"}
+{"ts": "2026-10-12T04:24:43.034Z", "level": "INFO", "service": "identity", "logger": "runtime", "msg": "request", "correlation_id": "2a8bb4a7d24b", "method": "POST", "path": "/login", "status": 200, "ms": 0.7}
+{"ts": "2026-10-12T04:24:43.038Z", "level": "INFO", "service": "identity", "logger": "identity", "msg": "login", "correlation_id": "5d5569f7fca9", "subject": "sam", "audience": "ticket-agent"}
+{"ts": "2026-10-12T04:24:43.038Z", "level": "INFO", "service": "identity", "logger": "runtime", "msg": "request", "correlation_id": "5d5569f7fca9", "method": "POST", "path": "/login", "status": 200, "ms": 0.8}
+{"ts": "2026-10-12T04:24:46.545Z", "level": "INFO", "service": "identity", "logger": "identity", "msg": "login", "correlation_id": "05fb017f6a06", "subject": "sam", "audience": "ticket-agent"}
+{"ts": "2026-10-12T04:24:46.545Z", "level": "INFO", "service": "identity", "logger": "runtime", "msg": "request", "correlation_id": "05fb017f6a06", "method": "POST", "path": "/login", "status": 200, "ms": 1.4}
+{"ts": "2026-10-12T04:24:46.598Z", "level": "INFO", "service": "identity", "logger": "identity", "msg": "login", "correlation_id": "67e9be029af1", "subject": "sam", "audience": "ticket-agent"}
+{"ts": "2026-10-12T04:24:46.598Z", "level": "INFO", "service": "identity", "logger": "runtime", "msg": "request", "correlation_id": "67e9be029af1", "method": "POST", "path": "/login", "status": 200, "ms": 0.6}
+{"ts": "2026-10-12T04:24:46.629Z", "level": "INFO", "service": "identity", "logger": "identity", "msg": "login", "correlation_id": "391475c48d4a", "subject": "sam", "audience": "ticket-agent"}
+{"ts": "2026-10-12T04:24:46.630Z", "level": "INFO", "service": "identity", "logger": "runtime", "msg": "request", "correlation_id": "391475c48d4a", "method": "POST", "path": "/login", "status": 200, "ms": 1.5}
+{"ts": "2026-10-12T04:24:46.675Z", "level": "INFO", "service": "identity", "logger": "identity", "msg": "login", "correlation_id": "f7d3a97920fc", "subject": "sam", "audience": "ticket-agent"}
+{"ts": "2026-10-12T04:24:46.676Z", "level": "INFO", "service": "identity", "logger": "runtime", "msg": "request", "correlation_id": "f7d3a97920fc", "method": "POST", "path": "/login", "status": 200, "ms": 0.8}
+{"ts": "2026-10-12T04:24:57.418Z", "level": "INFO", "service": "identity", "logger": "runtime", "msg": "stop signal received, draining", "signal": 21, "drain_s": 2.0, "inflight": 0}
+{"ts": "2026-10-12T04:24:59.516Z", "level": "INFO", "service": "identity", "logger": "uvicorn.error", "msg": "Shutting down"}
+{"ts": "2026-10-12T04:24:59.626Z", "level": "INFO", "service": "identity", "logger": "uvicorn.error", "msg": "Waiting for application shutdown."}
+{"ts": "2026-10-12T04:24:59.626Z", "level": "INFO", "service": "identity", "logger": "uvicorn.error", "msg": "Application shutdown complete."}
+{"ts": "2026-10-12T04:24:59.627Z", "level": "INFO", "service": "identity", "logger": "uvicorn.error", "msg": "Finished server process [7380]"}
+{"ts": "2026-10-12T04:24:59.628Z", "level": "INFO", "service": "identity", "logger": "runtime", "msg": "stopped", "inflight_at_exit": 0}

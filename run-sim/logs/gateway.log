@@ -1,0 +1,53 @@
+{"ts": "2026-10-12T02:11:30.325Z", "level": "INFO", "service": "gateway", "logger": "runtime", "msg": "starting", "environment": "local", "version": "sim", "host": "127.0.0.1", "port": 8302, "drain_s": 2.0, "grace_s": 60.0}
+{"ts": "2026-10-12T02:11:30.406Z", "level": "INFO", "service": "gateway", "logger": "uvicorn.error", "msg": "Started server process [24196]"}
+{"ts": "2026-10-12T02:11:30.407Z", "level": "INFO", "service": "gateway", "logger": "uvicorn.error", "msg": "Waiting for application startup."}
+{"ts": "2026-10-12T02:11:30.407Z", "level": "INFO", "service": "gateway", "logger": "uvicorn.error", "msg": "Application startup complete."}
+{"ts": "2026-10-12T02:11:30.407Z", "level": "INFO", "service": "gateway", "logger": "uvicorn.error", "msg": "Uvicorn running on http://127.0.0.1:8302 (Press CTRL+C to quit)"}
+{"ts": "2026-10-12T02:11:30.408Z", "level": "INFO", "service": "gateway", "logger": "runtime", "msg": "listening", "host": "127.0.0.1", "port": 8302}
+{"ts": "2026-10-12T02:11:33.238Z", "level": "INFO", "service": "gateway", "logger": "runtime", "msg": "request", "correlation_id": "3ab5f7cdfefe", "method": "POST", "path": "/v1/embed", "status": 200, "ms": 1505.2}
+{"ts": "2026-10-12T02:11:33.245Z", "level": "INFO", "service": "gateway", "logger": "runtime", "msg": "request", "correlation_id": "f33d2b49a616", "method": "POST", "path": "/v1/embed", "status": 200, "ms": 4.7}
+{"ts": "2026-10-12T02:11:33.251Z", "level": "INFO", "service": "gateway", "logger": "runtime", "msg": "request", "correlation_id": "8b60ce268129", "method": "POST", "path": "/v1/embed", "status": 200, "ms": 3.8}
+{"ts": "2026-10-12T02:11:33.256Z", "level": "INFO", "service": "gateway", "logger": "runtime", "msg": "request", "correlation_id": "2b3f137c953d", "method": "POST", "path": "/v1/embed", "status": 200, "ms": 3.5}
+{"ts": "2026-10-12T02:11:33.261Z", "level": "INFO", "service": "gateway", "logger": "runtime", "msg": "request", "correlation_id": "ba3fe4376634", "method": "POST", "path": "/v1/embed", "status": 200, "ms": 3.9}
+{"ts": "2026-10-12T02:11:33.266Z", "level": "INFO", "service": "gateway", "logger": "runtime", "msg": "request", "correlation_id": "7aa3e86b820e", "method": "POST", "path": "/v1/embed", "status": 200, "ms": 3.5}
+{"ts": "2026-10-12T02:11:33.271Z", "level": "INFO", "service": "gateway", "logger": "runtime", "msg": "request", "correlation_id": "934d8eb2c1f1", "method": "POST", "path": "/v1/embed", "status": 200, "ms": 3.6}
+{"ts": "2026-10-12T02:11:33.277Z", "level": "INFO", "service": "gateway", "logger": "runtime", "msg": "request", "correlation_id": "0a7adaf46d19", "method": "POST", "path": "/v1/embed", "status": 200, "ms": 4.2}
+{"ts": "2026-10-12T02:11:33.282Z", "level": "INFO", "service": "gateway", "logger": "runtime", "msg": "request", "correlation_id": "35488539d6c5", "method": "POST", "path": "/v1/embed", "status": 200, "ms": 3.6}
+{"ts": "2026-10-12T02:11:33.287Z", "level": "INFO", "service": "gateway", "logger": "runtime", "msg": "request", "correlation_id": "7424a04a6840", "method": "POST", "path": "/v1/embed", "status": 200, "ms": 3.4}
+{"ts": "2026-10-12T02:11:33.292Z", "level": "INFO", "service": "gateway", "logger": "runtime", "msg": "request", "correlation_id": "79b64639a8d2", "method": "POST", "path": "/v1/embed", "status": 200, "ms": 3.9}
+{"ts": "2026-10-12T02:11:33.298Z", "level": "INFO", "service": "gateway", "logger": "runtime", "msg": "request", "correlation_id": "8322c0eaed17", "method": "POST", "path": "/v1/embed", "status": 200, "ms": 4.1}
+{"ts": "2026-10-12T02:11:33.303Z", "level": "INFO", "service": "gateway", "logger": "runtime", "msg": "request", "correlation_id": "c3c98d714bb3", "method": "POST", "path": "/v1/embed", "status": 200, "ms": 3.8}
+{"ts": "2026-10-12T02:11:33.309Z", "level": "INFO", "service": "gateway", "logger": "runtime", "msg": "request", "correlation_id": "f98d227aa589", "method": "POST", "path": "/v1/embed", "status": 200, "ms": 4.1}
+{"ts": "2026-10-12T02:11:42.688Z", "level": "INFO", "service": "gateway", "logger": "runtime", "msg": "request", "correlation_id": "bc279043b5b7", "method": "POST", "path": "/v1/chat", "status": 200, "ms": 1561.8}
+{"ts": "2026-10-12T02:11:46.686Z", "level": "INFO", "service": "gateway", "logger": "runtime", "msg": "request", "correlation_id": "bc279043b5b7", "method": "POST", "path": "/v1/chat", "status": 200, "ms": 551.7}
+{"ts": "2026-10-12T02:11:47.491Z", "level": "INFO", "service": "gateway", "logger": "runtime", "msg": "request", "correlation_id": "bc279043b5b7", "method": "POST", "path": "/v1/chat", "status": 200, "ms": 565.8}
+{"ts": "2026-10-12T02:11:48.406Z", "level": "INFO", "service": "gateway", "logger": "runtime", "msg": "request", "correlation_id": "bc279043b5b7", "method": "POST", "path": "/v1/chat", "status": 200, "ms": 712.8}
+{"ts": "2026-10-12T02:11:49.797Z", "level": "INFO", "service": "gateway", "logger": "runtime", "msg": "request", "correlation_id": "da8b6be22a15", "method": "POST", "path": "/v1/chat", "status": 200, "ms": 681.5}
+{"ts": "2026-10-12T02:11:51.000Z", "level": "INFO", "service": "gateway", "logger": "runtime", "msg": "request", "correlation_id": "da8b6be22a15", "method": "POST", "path": "/v1/chat", "status": 200, "ms": 986.6}
+{"ts": "2026-10-12T02:11:52.438Z", "level": "INFO", "service": "gateway", "logger": "runtime", "msg": "request", "correlation_id": "da8b6be22a15", "method": "POST", "path": "/v1/chat", "status": 200, "ms": 1235.7}
+{"ts": "2026-10-12T02:11:53.357Z", "level": "INFO", "service": "gateway", "logger": "runtime", "msg": "request", "correlation_id": "da8b6be22a15", "method": "POST", "path": "/v1/chat", "status": 200, "ms": 717.6}
+{"ts": "2026-10-12T02:11:54.509Z", "level": "INFO", "service": "gateway", "logger": "runtime", "msg": "request", "correlation_id": "2eab9ab2cf16", "method": "POST", "path": "/v1/chat", "status": 200, "ms": 498.8}
+{"ts": "2026-10-12T02:11:55.304Z", "level": "INFO", "service": "gateway", "logger": "runtime", "msg": "request", "correlation_id": "2eab9ab2cf16", "method": "POST", "path": "/v1/chat", "status": 200, "ms": 577.3}
+{"ts": "2026-10-12T02:11:56.550Z", "level": "INFO", "service": "gateway", "logger": "runtime", "msg": "request", "correlation_id": "2eab9ab2cf16", "method": "POST", "path": "/v1/chat", "status": 200, "ms": 1044.9}
+{"ts": "2026-10-12T02:11:57.688Z", "level": "INFO", "service": "gateway", "logger": "runtime", "msg": "request", "correlation_id": "2eab9ab2cf16", "method": "POST", "path": "/v1/chat", "status": 200, "ms": 938.2}
+{"ts": "2026-10-12T02:11:58.998Z", "level": "INFO", "service": "gateway", "logger": "runtime", "msg": "request", "correlation_id": "4e1d34094b93", "method": "POST", "path": "/v1/chat", "status": 200, "ms": 666.1}
+{"ts": "2026-10-12T02:12:00.304Z", "level": "INFO", "service": "gateway", "logger": "runtime", "msg": "request", "correlation_id": "4e1d34094b93", "method": "POST", "path": "/v1/chat", "status": 200, "ms": 1107.2}
+{"ts": "2026-10-12T02:12:01.199Z", "level": "INFO", "service": "gateway", "logger": "runtime", "msg": "request", "correlation_id": "4e1d34094b93", "method": "POST", "path": "/v1/chat", "status": 200, "ms": 694.0}
+{"ts": "2026-10-12T02:12:42.003Z", "level": "INFO", "service": "gateway", "logger": "runtime", "msg": "request", "correlation_id": "4e1d34094b93", "method": "POST", "path": "/v1/chat", "status": 200, "ms": 40605.6}
+{"ts": "2026-10-12T02:12:43.128Z", "level": "INFO", "service": "gateway", "logger": "runtime", "msg": "request", "correlation_id": "6ad446806cd4", "method": "POST", "path": "/v1/embed", "status": 200, "ms": 3.7}
+{"ts": "2026-10-12T02:12:48.166Z", "level": "INFO", "service": "gateway", "logger": "runtime", "msg": "request", "correlation_id": "baseline-K01", "method": "POST", "path": "/v1/chat", "status": 200, "ms": 5022.6}
+{"ts": "2026-10-12T02:12:48.411Z", "level": "INFO", "service": "gateway", "logger": "runtime", "msg": "request", "correlation_id": "96954ab79174", "method": "POST", "path": "/v1/embed", "status": 200, "ms": 2.7}
+{"ts": "2026-10-12T02:12:49.048Z", "level": "INFO", "service": "gateway", "logger": "runtime", "msg": "request", "correlation_id": "baseline-K02", "method": "POST", "path": "/v1/chat", "status": 200, "ms": 635.9}
+{"ts": "2026-10-12T02:12:49.283Z", "level": "INFO", "service": "gateway", "logger": "runtime", "msg": "request", "correlation_id": "37862a05b014", "method": "POST", "path": "/v1/embed", "status": 200, "ms": 2.2}
+{"ts": "2026-10-12T02:12:50.310Z", "level": "INFO", "service": "gateway", "logger": "runtime", "msg": "request", "correlation_id": "baseline-K03", "method": "POST", "path": "/v1/chat", "status": 200, "ms": 1025.3}
+{"ts": "2026-10-12T02:12:50.538Z", "level": "INFO", "service": "gateway", "logger": "runtime", "msg": "request", "correlation_id": "538fc8f457fb", "method": "POST", "path": "/v1/embed", "status": 200, "ms": 3.0}
+{"ts": "2026-10-12T02:12:51.650Z", "level": "INFO", "service": "gateway", "logger": "runtime", "msg": "request", "correlation_id": "baseline-K04", "method": "POST", "path": "/v1/chat", "status": 200, "ms": 1109.9}
+{"ts": "2026-10-12T02:12:51.879Z", "level": "INFO", "service": "gateway", "logger": "runtime", "msg": "request", "correlation_id": "f326c66220c4", "method": "POST", "path": "/v1/embed", "status": 200, "ms": 2.4}
+{"ts": "2026-10-12T02:12:52.637Z", "level": "INFO", "service": "gateway", "logger": "runtime", "msg": "request", "correlation_id": "baseline-K12", "method": "POST", "path": "/v1/chat", "status": 200, "ms": 756.7}
+{"ts": "2026-10-12T02:12:53.056Z", "level": "INFO", "service": "gateway", "logger": "runtime", "msg": "request", "correlation_id": "3f32433cf83c", "method": "GET", "path": "/v1/status", "status": 200, "ms": 0.3}
+{"ts": "2026-10-12T02:12:58.447Z", "level": "INFO", "service": "gateway", "logger": "runtime", "msg": "stop signal received, draining", "signal": 21, "drain_s": 2.0, "inflight": 0}
+{"ts": "2026-10-12T02:13:00.466Z", "level": "INFO", "service": "gateway", "logger": "uvicorn.error", "msg": "Shutting down"}
+{"ts": "2026-10-12T02:13:00.576Z", "level": "INFO", "service": "gateway", "logger": "uvicorn.error", "msg": "Waiting for application shutdown."}
+{"ts": "2026-10-12T02:13:00.577Z", "level": "INFO", "service": "gateway", "logger": "uvicorn.error", "msg": "Application shutdown complete."}
+{"ts": "2026-10-12T02:13:00.577Z", "level": "INFO", "service": "gateway", "logger": "uvicorn.error", "msg": "Finished server process [24196]"}
+{"ts": "2026-10-12T02:13:00.579Z", "level": "INFO", "service": "gateway", "logger": "runtime", "msg": "stopped", "inflight_at_exit": 0}

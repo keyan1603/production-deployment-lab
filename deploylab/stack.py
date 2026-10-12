@@ -52,7 +52,7 @@ def base_env() -> dict:
 class Stack:
     def __init__(self, run_dir: Optional[Path] = None, gemini_key: str = "", pin_light: bool = True,
                  rpm: int = 15, overrides: Optional[dict] = None, version: str = "dev", port_base: int = 8100,
-                 release: str = "r1-baseline", models: Optional[dict] = None, otel_endpoint: str = "", probe_interval_s: float = 60.0) -> None:
+                 release: str = "r1-baseline", models: Optional[dict] = None, otel_endpoint: str = "", probe_interval_s: float = 60.0, provider_url: str = "") -> None:
         self.run = Path(run_dir or ROOT / "run")
         self.secrets_dir, self.logs_dir = self.run / "secrets", self.run / "logs"
         self.gemini_key, self.pin_light, self.rpm, self.version = gemini_key, pin_light, rpm, version
@@ -61,7 +61,7 @@ class Stack:
         self.ports = {n: port_base + (p - 8100) for n, p in PORTS.items()}
         self.urls = {n: f"http://127.0.0.1:{p}" for n, p in self.ports.items()}
         self.release, self.models = release, models or {}
-        self.otel_endpoint, self.probe_interval_s = otel_endpoint, probe_interval_s
+        self.otel_endpoint, self.probe_interval_s, self.provider_url = otel_endpoint, probe_interval_s, provider_url
         self.admin_key = (self.secrets_dir / "admin_key").read_text() if (self.secrets_dir / "admin_key").exists() else secrets.token_urlsafe(24)
 
     # -- secrets ----------------------------------------------------------------------------------
@@ -89,6 +89,8 @@ class Stack:
             env.update({"GEMINI_API_KEY_FILE": str(s / "gemini_key"), "GATEWAY_SERVICE_KEYS_FILE": str(s / "gateway_service_keys"),
                         "REQUESTS_PER_MINUTE": str(self.rpm), "PIN_LIGHT": str(self.pin_light).lower(),
                         "AUDIT_PATH": str(self.run / "audit" / "gateway.jsonl")})
+            if self.provider_url:                # the Google SDK reads this: every model call goes to the simulator instead of the real API
+                env["GOOGLE_GEMINI_BASE_URL"] = self.provider_url
             if self.models.get("light"):
                 env["LIGHT_MODEL"] = self.models["light"]
             if self.models.get("heavy"):
@@ -128,6 +130,18 @@ class Stack:
                                  stdout=log_file, stderr=subprocess.STDOUT, creationflags=flags)
         self.procs[name] = Proc(name, popen, log_path)
         return self.procs[name]
+
+    def spawn_extra(self, name: str, key: str, port: int, env: Optional[dict] = None) -> Proc:
+        """Another instance of a service on its own port (for scale-out experiments). It is addressed as `name-key`."""
+        full = f"{name}-{key}"
+        self.ports[full], self.urls[full] = port, f"http://127.0.0.1:{port}"
+        child_env = {**self._env_for(name), "PORT": str(port), **(env or {})}
+        log_path = self.logs_dir / f"{full}.log"
+        flags = subprocess.CREATE_NEW_PROCESS_GROUP if sys.platform == "win32" else 0
+        popen = subprocess.Popen([sys.executable, "-m", MODULES[name]], cwd=ROOT, env=child_env, stdout=open(log_path, "ab"),
+                                 stderr=subprocess.STDOUT, creationflags=flags)
+        self.procs[full] = Proc(full, popen, log_path)
+        return self.procs[full]
 
     def probe(self, name: str, path: str = "/readyz", timeout: float = 4.0) -> tuple[int, dict]:
         try:
@@ -174,7 +188,7 @@ class Stack:
     def stop(self) -> dict:
         """Stop in dependency order: callers first, so nothing is left calling a service that is already gone."""
         out = {}
-        for name in ("monitor", "tickets", "knowledge", "gateway", "identity"):
+        for name in [n for n in self.procs if "-" in n] + ["monitor", "tickets", "knowledge", "gateway", "identity"]:
             if name in self.procs:
                 out[name] = self.stop_one(name)
         return out

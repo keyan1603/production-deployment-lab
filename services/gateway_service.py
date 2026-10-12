@@ -18,6 +18,7 @@ import asyncio
 import hmac
 import logging
 import os
+from pathlib import Path
 from typing import Optional
 
 from requisite.core.context import RequestContext, request_context
@@ -29,15 +30,29 @@ from starlette.routing import Route
 
 from deploylab import logs
 from deploylab.config import Common, Env
+from deploylab.guards import QuotaGuard, SpendGuard
 from deploylab.runtime import init_telemetry, Lifecycle, make_app, serve
 from deploylab.telemetry import telemetry
 from deploylab.serde import decode_messages, decode_tools, encode_response
 from gateway.factory import build_gateway
 from gateway.provider import GatewayExhausted
-from gateway.routing import LIGHT
+from gateway.routing import HEAVY, LIGHT
 
 log = logging.getLogger("gateway")
 MAX_AUDIT_RECORDS = 10_000
+
+
+def _pairs(env: Env, name: str, cast) -> dict:
+    """Parse "a=1,b=2" into {"a": 1, "b": 2}; a malformed entry is a configuration error."""
+    out = {}
+    for part in env.str(name, "").split(","):
+        if part.strip():
+            key, _, value = part.partition("=")
+            try:
+                out[key.strip()] = cast(value)
+            except ValueError:
+                env.problems.append(f"{name} entry {part!r} should look like name=number")
+    return out
 
 
 class Settings:
@@ -63,6 +78,16 @@ class Settings:
         # differ by operator, so by default it is never served from, or stored in, the cache.
         self.cache_services = {s.strip() for s in env.str("CACHE_SERVICES", "knowledge-agent").split(",") if s.strip()}
         self.pin_light = env.str("PIN_LIGHT", "false").lower() == "true"
+        self.force_tier = env.str("FORCE_TIER", "").lower()           # "", "light" or "heavy": send every request to one tier
+        if self.force_tier not in ("", "light", "heavy"):
+            env.problems.append("FORCE_TIER must be light, heavy or empty")
+        # Guards that act before the provider or the budget does (deploylab/guards.py). All optional.
+        self.quota_rpd = _pairs(env, "QUOTA_RPD", int)              # model=requests per provider-day
+        self.quota_shed = _pairs(env, "QUOTA_SHED", float)          # caller=share of the allowance at which it is refused
+        self.quota_reset_hour = env.int("QUOTA_RESET_UTC_HOUR", 0, minimum=0, maximum=23)
+        self.daily_budget_usd = env.float("DAILY_BUDGET_USD", 0.0)
+        self.budget_exempt = tuple(x.strip() for x in env.str("BUDGET_EXEMPT", "monitor-agent").split(",") if x.strip())
+        self.state_dir = env.str("STATE_DIR", "")
         env.done()
 
 
@@ -74,9 +99,15 @@ def create_app(settings: Settings, gw=None, embedder=None):
         os.environ["REQUESTS_PER_MINUTE"] = str(settings.requests_per_minute)
         gw, _ = build_gateway(use_cache=settings.cache, tenant_budget_usd=settings.tenant_budget_usd or None,
                               audit_path=settings.audit_path or None,
-                              classifier=(lambda m, t, s: LIGHT) if settings.pin_light else None)
+                              classifier=((lambda m, t, s: HEAVY) if settings.force_tier == "heavy" else (lambda m, t, s: LIGHT))
+                              if (settings.pin_light or settings.force_tier) else None)
     if embedder is None:
         embedder = GeminiEmbeddingProvider(api_key=settings.gemini_key.reveal(), model=os.environ.get("EMBEDDING_MODEL", "gemini-embedding-2"))
+
+    state = Path(settings.state_dir) if settings.state_dir else None
+    quota = QuotaGuard(settings.quota_rpd, settings.quota_shed, state / "quota.json" if state else None, settings.quota_reset_hour) if settings.quota_rpd else None
+    spend = SpendGuard(settings.daily_budget_usd, settings.budget_exempt, state / "spend.json" if state else None, settings.quota_reset_hour) if settings.daily_budget_usd else None
+    embed_model = os.environ.get("EMBEDDING_MODEL", "gemini-embedding-2")
 
     def caller(request: Request) -> Optional[str]:
         """The authenticated service name, or None."""
@@ -85,6 +116,12 @@ def create_app(settings: Settings, gw=None, embedder=None):
         if expected and key and hmac.compare_digest(expected, key):
             return name
         return None
+
+    model_of_route = {r.name: r.provider.model for r in gw.routes}
+    # The models a request can be served by. With the light tier pinned that is the light model alone: a heavy model that is only
+    # ever a failover target has headroom precisely because nothing uses it, which must not stop the guard from acting.
+    normal = [r for r in gw.routes if r.tier != "degraded"]
+    eligible_models = [normal[0].provider.model] if settings.pin_light and normal else [r.provider.model for r in normal]
 
     def tier_of(route_name: Optional[str]) -> str:
         return next((r.tier for r in gw.routes if r.name == route_name), "")
@@ -106,6 +143,8 @@ def create_app(settings: Settings, gw=None, embedder=None):
         """The gateway's view of one request, as metrics: who called, which route and tier answered, what it cost."""
         tel = telemetry()
         route, tier = facts.get("route") or "none", facts.get("tier") or "none"
+        if spend is not None and facts.get("cost_usd"):
+            spend.record(facts["cost_usd"])
         tel.inc("ai.gateway.requests", caller=service, route=route, tier=tier, outcome=outcome)
         if facts.get("input_tokens"):
             tel.inc("ai.gateway.tokens", facts["input_tokens"], direction="input", route=route)
@@ -116,6 +155,8 @@ def create_app(settings: Settings, gw=None, embedder=None):
         if facts.get("latency_ms") is not None and route != "none":
             tel.observe("ai.gateway.duration", facts["latency_ms"] / 1000.0, route=route)
         for attempt in facts.get("attempts", []):
+            if quota is not None and attempt.get("error") != "circuit_open":        # an attempt that reached the provider uses allowance, even a failed one
+                quota.record(model_of_route.get(attempt.get("route"), ""))
             if not attempt.get("ok"):
                 why = "circuit_open" if attempt.get("error") == "circuit_open" else "error"
                 tel.inc("ai.gateway.attempt_failures", route=attempt.get("route", "none"), reason=why)
@@ -133,6 +174,18 @@ def create_app(settings: Settings, gw=None, embedder=None):
         corr = request.headers.get("x-correlation-id", "")
         ctx = RequestContext(user=request.headers.get("x-operator") or None, tenant=request.headers.get("x-tenant") or None,
                              correlation_id=corr or None, attributes={"service": service})
+        # Guards first: refuse before spending a provider request, with a reason the caller can act on.
+        if quota is not None:
+            why = quota.check(service, eligible_models)
+            if why:
+                telemetry().inc("ai.gateway.shed", caller=service, reason="quota")
+                logs.event(log, "request shed", level=logging.WARNING, caller=service, reason=why)
+                return JSONResponse({"error": "quota_guard", "detail": why}, status_code=503, headers={"Retry-After": "60"})
+        if spend is not None:
+            why = spend.check(service)
+            if why:
+                telemetry().inc("ai.gateway.shed", caller=service, reason="budget")
+                return JSONResponse({"error": "budget", "detail": why}, status_code=402)
         kwargs = dict(data.get("options", {}))
         if data.get("temperature") is not None:
             kwargs["temperature"] = data["temperature"]
@@ -164,6 +217,8 @@ def create_app(settings: Settings, gw=None, embedder=None):
         try:
             texts = (await request.json())["texts"]
             vectors = await asyncio.to_thread(embedder.embed, texts)
+            if quota is not None:
+                quota.record(embed_model)
         except KeyError:
             return JSONResponse({"error": "bad_request"}, status_code=400)
         except Exception as exc:  # noqa: BLE001 - the caller fails closed on any embedding failure
@@ -175,13 +230,18 @@ def create_app(settings: Settings, gw=None, embedder=None):
         if caller(request) is None:
             return JSONResponse({"error": "unauthorized"}, status_code=401)
         return JSONResponse({"routes": [{"name": r.name, "tier": r.tier, "breaker": r.breaker.state, "model": r.provider.model} for r in gw.routes],
-                             "audit": gw.audit.summary()})
+                             "audit": gw.audit.summary(), "quota": quota.snapshot() if quota else None,
+                             "spend": {"usd": round(spend.spent(), 6), "budget": spend.budget} if spend else None})
 
     def routes_available() -> object:
         open_all = all(r.breaker.state == "open" for r in gw.routes)
         return "every route's circuit breaker is open" if open_all else True
 
     lc.checks["routes"] = routes_available
+    if quota is not None:
+        telemetry().gauge("ai.gateway.quota_used", lambda: [(quota.ratio(m), {"model": m}) for m in quota.limits])
+    if spend is not None:
+        telemetry().gauge("ai.gateway.budget_used", lambda: [(spend.ratio(), {})])
     states = {"closed": 0, "half_open": 1, "open": 2}
     telemetry().gauge("ai.gateway.breaker_state", lambda: [(states.get(r.breaker.state, 0), {"route": r.name}) for r in gw.routes])
     app = make_app(lc, [Route("/v1/chat", chat, methods=["POST"]), Route("/v1/embed", embed, methods=["POST"]),

@@ -73,6 +73,7 @@ groups:
       severity: page
       slo: ticket_availability
     annotations:
+      runbook: docs/runbooks/ticket-availability.md
       summary: ticket_availability is burning its error budget 14.4x too fast (5m and 1m)
       description: The ticket API answers without a server error. Objective 99.0%.
   - alert: SLOBurn_ticket_availability_ticket
@@ -82,6 +83,7 @@ groups:
       severity: ticket
       slo: ticket_availability
     annotations:
+      runbook: docs/runbooks/ticket-availability.md
       summary: ticket_availability is burning its error budget 6x too fast (15m and 3m)
       description: The ticket API answers without a server error. Objective 99.0%.
   - alert: SLOBurn_ticket_safe_completion_page
@@ -91,6 +93,7 @@ groups:
       severity: page
       slo: ticket_safe_completion
     annotations:
+      runbook: docs/runbooks/tickets-held.md
       summary: ticket_safe_completion is burning its error budget 14.4x too fast (5m and 1m)
       description: A ticket is released or escalated on purpose, not held for a person and not lost to an error. Objective 90.0%.
   - alert: SLOBurn_ticket_safe_completion_ticket
@@ -100,6 +103,7 @@ groups:
       severity: ticket
       slo: ticket_safe_completion
     annotations:
+      runbook: docs/runbooks/tickets-held.md
       summary: ticket_safe_completion is burning its error budget 6x too fast (15m and 3m)
       description: A ticket is released or escalated on purpose, not held for a person and not lost to an error. Objective 90.0%.
   - alert: SLOBurn_ticket_latency_page
@@ -109,6 +113,7 @@ groups:
       severity: page
       slo: ticket_latency
     annotations:
+      runbook: docs/runbooks/ticket-latency.md
       summary: ticket_latency is burning its error budget 14.4x too fast (5m and 1m)
       description: A ticket is finished within 60 seconds. Objective 95.0%.
   - alert: SLOBurn_ticket_latency_ticket
@@ -118,6 +123,7 @@ groups:
       severity: ticket
       slo: ticket_latency
     annotations:
+      runbook: docs/runbooks/ticket-latency.md
       summary: ticket_latency is burning its error budget 6x too fast (15m and 3m)
       description: A ticket is finished within 60 seconds. Objective 95.0%.
   - alert: SLOBurn_answer_quality_probe_page
@@ -127,6 +133,7 @@ groups:
       severity: page
       slo: answer_quality_probe
     annotations:
+      runbook: docs/runbooks/answer-quality.md
       summary: answer_quality_probe is burning its error budget 14.4x too fast (5m and 1m)
       description: Probe questions with known right answers are answered correctly. Objective 95.0%.
   - alert: SLOBurn_answer_quality_probe_ticket
@@ -136,6 +143,7 @@ groups:
       severity: ticket
       slo: answer_quality_probe
     annotations:
+      runbook: docs/runbooks/answer-quality.md
       summary: answer_quality_probe is burning its error budget 6x too fast (15m and 3m)
       description: Probe questions with known right answers are answered correctly. Objective 95.0%.
   - alert: SLOBurn_no_degraded_tier_page
@@ -145,6 +153,7 @@ groups:
       severity: page
       slo: no_degraded_tier
     annotations:
+      runbook: docs/runbooks/degraded-tier.md
       summary: no_degraded_tier is burning its error budget 14.4x too fast (5m and 1m)
       description: Model calls are answered by a normal-tier model, not the degraded fallback. Objective 99.0%.
   - alert: SLOBurn_no_degraded_tier_ticket
@@ -154,6 +163,7 @@ groups:
       severity: ticket
       slo: no_degraded_tier
     annotations:
+      runbook: docs/runbooks/degraded-tier.md
       summary: no_degraded_tier is burning its error budget 6x too fast (15m and 3m)
       description: Model calls are answered by a normal-tier model, not the degraded fallback. Objective 99.0%.
   - alert: RestrictedFactLeaked
@@ -163,26 +173,31 @@ groups:
       severity: page
       slo: access_control
     annotations:
+      runbook: docs/runbooks/restricted-fact-leaked.md
       summary: A synthetic probe found a restricted fact in an answer
       description: Access control failed for at least one probe in the last 15 minutes. The objective is zero.
   - alert: DriftCritical
-    expr: ai_drift_verdict == 2
+    expr: max(max_over_time(ai_drift_verdict[3m])) == 2
     for: 1m
     labels:
       severity: page
       slo: drift
     annotations:
-      summary: The drift monitor reads critical against the saved baseline
-      description: See the monitor's /state for the findings (quality, leaks, degraded share).
+      runbook: docs/runbooks/answer-quality.md
+      summary: The drift monitor has read critical against the saved baseline in the last three minutes
+      description: 'The look-back is hysteresis: the verdict is computed over a sliding window and can flip between probes, which without it pages
+        and resolves in turn. See the monitor''s /state for the findings.'
   - alert: CircuitBreakerOpen
-    expr: max by (route) (ai_gateway_breaker_state) == 2
+    expr: max by (route) (max_over_time(ai_gateway_breaker_state[2m])) == 2
     for: 1m
     labels:
       severity: ticket
       slo: dependencies
     annotations:
-      summary: A model route's circuit breaker has been open for a minute
-      description: Requests are failing over to another route.
+      runbook: docs/runbooks/provider-trouble.md
+      summary: A model route's circuit breaker has been tripping for a minute
+      description: A breaker re-closes to half-open every 30 s to test the route, so its state alternates while the route is down; the look-back
+        sees the trips. Requests are failing over to another route.
   - alert: DegradedTierServing
     expr: sum(rate(ai_gateway_requests_total{tier="degraded"}[5m])) > 0
     for: 1m
@@ -190,5 +205,68 @@ groups:
       severity: page
       slo: no_degraded_tier
     annotations:
+      runbook: docs/runbooks/degraded-tier.md
       summary: Answers are being produced by the degraded-tier model
       description: They are held or labelled, but a person must know.
+  - alert: QuotaNearlyExhausted
+    expr: max by (model) (ai_gateway_quota_used) > 0.8
+    for: 1m
+    labels:
+      severity: ticket
+      slo: quota
+    annotations:
+      runbook: docs/runbooks/quota.md
+      summary: A model is past 80 percent of its daily allowance
+      description: The quota guard will start refusing the lowest-priority caller at its threshold.
+  - alert: QuotaGuardShedding
+    expr: sum(increase(ai_gateway_shed_total{reason="quota"}[5m])) > 0
+    for: 0s
+    labels:
+      severity: page
+      slo: quota
+    annotations:
+      runbook: docs/runbooks/quota.md
+      summary: The gateway is refusing requests to protect the daily allowance
+      description: Tickets are being held with a clear reason instead of failing over to a weaker model.
+  - alert: DailyBudgetNearlyExhausted
+    expr: max(ai_gateway_budget_used) > 0.8
+    for: 1m
+    labels:
+      severity: ticket
+      slo: cost
+    annotations:
+      runbook: docs/runbooks/cost.md
+      summary: More than 80 percent of today's spend budget is used
+      description: Callers other than the exempt ones are refused at 100 percent.
+  - alert: BudgetShedding
+    expr: sum(increase(ai_gateway_shed_total{reason="budget"}[5m])) > 0
+    for: 0s
+    labels:
+      severity: page
+      slo: cost
+    annotations:
+      runbook: docs/runbooks/cost.md
+      summary: The gateway is refusing requests because today's budget is spent
+      description: Tickets are held with a budget reason.
+  - alert: CostPerTicketHigh
+    expr: (sum(rate(ai_gateway_cost_usd_total[5m])) / sum(rate(ai_ticket_outcomes_total[5m]))) > 0.0033 and sum(rate(ai_ticket_outcomes_total[5m]))
+      > 0.02
+    for: 2m
+    labels:
+      severity: ticket
+      slo: cost
+    annotations:
+      runbook: docs/runbooks/cost.md
+      summary: Each ticket is costing more than three times the expected $0.0011
+      description: 'A longer prompt, a loop, retries or a model or tier change is the usual cause. The expected cost is a calibration: update
+        it when the system changes on purpose.'
+  - alert: TicketsFrozen
+    expr: max(ai_ticket_frozen) == 1
+    for: 0s
+    labels:
+      severity: ticket
+      slo: operations
+    annotations:
+      runbook: docs/runbooks/incident-process.md
+      summary: 'The ticket service is frozen: no new tickets are being accepted'
+      description: Someone used the kill switch. Make sure it is turned off when the cause is fixed.

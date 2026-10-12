@@ -1,0 +1,9 @@
+{
+  "correct_rate": 1.0,
+  "authorized_correct_rate": 1.0,
+  "leaks": 0,
+  "fallback_rate": 0.0,
+  "degraded_share": 0.0,
+  "cost_per_request_usd": 0.0,
+  "p50_latency_ms": 944.9
+}

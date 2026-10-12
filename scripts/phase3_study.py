@@ -1,6 +1,7 @@
 """Observability and SLOs on a live system: one trace across services, the metrics behind the SLOs, and alerts that fire and clear.
 
-    python -u scripts/phase3_study.py
+    python -u scripts/phase3_study.py          # real model (needs free-tier quota)
+    python -u scripts/phase3_study.py --sim    # the provider simulator: SIMULATED answers, the real services, gateway, SDK and observability stack
 
 Starts the open-source observability stack in Podman (OpenTelemetry Collector, Jaeger, Prometheus with the generated
 SLO rules at minute-scale windows, Alertmanager, a webhook sink, Grafana), then the services on the host with the
@@ -22,6 +23,7 @@ from tabulate import tabulate
 
 warnings.filterwarnings("ignore")
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from deploylab.loadgen import Sim  # noqa: E402
 from deploylab.stack import ROOT, Stack, load_gemini_key  # noqa: E402
 from scripts.save_baseline import calibrate  # noqa: E402
 from tickets.data import TICKETS  # noqa: E402
@@ -85,7 +87,11 @@ def firing():
 
 
 def main():
-    key = load_gemini_key()
+    sim_mode = "--sim" in sys.argv
+    sim = Sim(port=8920, rpm=600, rpd=100000) if sim_mode else None
+    key = "sim-key-not-a-real-key" if sim_mode else load_gemini_key()
+    if sim_mode:
+        print("MODE: SIMULATED PROVIDER (answers are scripted; services, gateway, SDK and observability stack are real)")
     env = {**os.environ, "SLO_RULES": "slo.lab.rules.yml"}
     banner("1. the observability stack (all open source) in Podman")
     subprocess.run(COMPOSE + ["down"], capture_output=True, text=True, env=env)
@@ -105,7 +111,8 @@ def main():
 
     run_dir = ROOT / "run-p3"
     shutil.rmtree(run_dir, ignore_errors=True)
-    stack = Stack(run_dir=run_dir, gemini_key=key, pin_light=True, release="r1-baseline", version="phase3", otel_endpoint=OTLP, probe_interval_s=20)
+    stack = Stack(run_dir=run_dir, gemini_key=key, pin_light=True, release="r1-baseline", version="phase3", otel_endpoint=OTLP, probe_interval_s=20,
+                  rpm=600 if sim_mode else 15, port_base=8100 if not sim_mode else 8600, provider_url=sim.url if sim_mode else "", overrides={"monitor": {"BASELINE_PATH": str(run_dir / "baseline.json")}})
     stack.start()
     try:
         print("services ready:", stack.wait_ready())
@@ -113,19 +120,20 @@ def main():
 
         banner("2. the baseline for the drift monitor: one probe rotation a person reviews, then saves")
         gw_key = (stack.secrets_dir / "gateway_key_monitor").read_text().strip()
-        calibrate(stack.urls["identity"], stack.urls["gateway"], stack.urls["knowledge"], gw_key, save=True)
+        calibrate(stack.urls["identity"], stack.urls["gateway"], stack.urls["knowledge"], gw_key, path=run_dir / "baseline.json", save=True)
         stack.spawn("monitor")
         print("monitor ready:", stack.wait_ready(["monitor"]))
 
-        banner("3. normal traffic: seven tickets")
+        banner("3. normal traffic: eight tickets")
         rows = [ops.ticket(f"N{i + 1}", t.text) for i, t in enumerate(NORMAL[:6])]
         pii = next(t for t in TICKETS if t.kind == "pii")
         rows.append(ops.ticket("N7", pii.text))
+        rows.append(ops.ticket("N8", "Customer C-1002 reports order O-5002 was charged twice. Can we refund the duplicate, and what is the approval threshold for refunds?"))
         print(tabulate([[r["id"], r["http"], r["action"], r["release"], f"{r['seconds']}s"] for r in rows], headers=["ticket", "HTTP", "action", "release", "time"], tablefmt="github"))
         time.sleep(12)                                              # let the exporters and the scrape catch up
 
         banner("4. one ticket is one trace across the services")
-        for corr in ("p3-N1", "p3-N7"):
+        for corr in ("p3-N8", "p3-N1"):
             traces = httpx.get(f"{JAEGER}/api/traces", params={"service": "tickets", "tags": json.dumps({"app.correlation_id": corr}), "limit": 5}, timeout=15).json()["data"]
             if not traces:
                 print(corr, "-> no trace found")
@@ -246,6 +254,8 @@ def main():
         print("still firing:", sorted(firing()) or "none")
     finally:
         print("\nstopping the services:", json.dumps(stack.stop()))
+        if sim:
+            sim.stop()
         subprocess.run(COMPOSE + ["down"], capture_output=True, text=True, env=env)
 
 

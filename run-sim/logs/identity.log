@@ -1,0 +1,34 @@
+{"ts": "2026-10-12T02:11:29.826Z", "level": "INFO", "service": "identity", "logger": "runtime", "msg": "starting", "environment": "local", "version": "sim", "host": "127.0.0.1", "port": 8301, "drain_s": 2.0, "grace_s": 60.0}
+{"ts": "2026-10-12T02:11:29.865Z", "level": "INFO", "service": "identity", "logger": "uvicorn.error", "msg": "Started server process [15648]"}
+{"ts": "2026-10-12T02:11:29.866Z", "level": "INFO", "service": "identity", "logger": "uvicorn.error", "msg": "Waiting for application startup."}
+{"ts": "2026-10-12T02:11:29.866Z", "level": "INFO", "service": "identity", "logger": "uvicorn.error", "msg": "Application startup complete."}
+{"ts": "2026-10-12T02:11:29.866Z", "level": "INFO", "service": "identity", "logger": "uvicorn.error", "msg": "Uvicorn running on http://127.0.0.1:8301 (Press CTRL+C to quit)"}
+{"ts": "2026-10-12T02:11:29.867Z", "level": "INFO", "service": "identity", "logger": "runtime", "msg": "listening", "host": "127.0.0.1", "port": 8301}
+{"ts": "2026-10-12T02:11:34.521Z", "level": "INFO", "service": "identity", "logger": "identity", "msg": "login", "correlation_id": "db30a43dd8f5", "subject": "sam", "audience": "ticket-agent"}
+{"ts": "2026-10-12T02:11:34.522Z", "level": "INFO", "service": "identity", "logger": "runtime", "msg": "request", "correlation_id": "db30a43dd8f5", "method": "POST", "path": "/login", "status": 200, "ms": 0.8}
+{"ts": "2026-10-12T02:11:48.623Z", "level": "INFO", "service": "identity", "logger": "identity", "msg": "login", "correlation_id": "0a3abd9fea98", "subject": "sam", "audience": "ticket-agent"}
+{"ts": "2026-10-12T02:11:48.623Z", "level": "INFO", "service": "identity", "logger": "runtime", "msg": "request", "correlation_id": "0a3abd9fea98", "method": "POST", "path": "/login", "status": 200, "ms": 0.6}
+{"ts": "2026-10-12T02:11:53.588Z", "level": "INFO", "service": "identity", "logger": "identity", "msg": "login", "correlation_id": "851064097618", "subject": "sam", "audience": "ticket-agent"}
+{"ts": "2026-10-12T02:11:53.588Z", "level": "INFO", "service": "identity", "logger": "runtime", "msg": "request", "correlation_id": "851064097618", "method": "POST", "path": "/login", "status": 200, "ms": 0.5}
+{"ts": "2026-10-12T02:11:57.918Z", "level": "INFO", "service": "identity", "logger": "identity", "msg": "login", "correlation_id": "4c20361f80a6", "subject": "sam", "audience": "ticket-agent"}
+{"ts": "2026-10-12T02:11:57.919Z", "level": "INFO", "service": "identity", "logger": "runtime", "msg": "request", "correlation_id": "4c20361f80a6", "method": "POST", "path": "/login", "status": 200, "ms": 0.6}
+{"ts": "2026-10-12T02:12:42.221Z", "level": "INFO", "service": "identity", "logger": "identity", "msg": "login", "correlation_id": "55489bbb827b", "subject": "sam", "audience": "ticket-agent"}
+{"ts": "2026-10-12T02:12:42.222Z", "level": "INFO", "service": "identity", "logger": "runtime", "msg": "request", "correlation_id": "55489bbb827b", "method": "POST", "path": "/login", "status": 200, "ms": 0.6}
+{"ts": "2026-10-12T02:12:42.661Z", "level": "INFO", "service": "identity", "logger": "identity", "msg": "login", "correlation_id": "fb73ff8dfdd6", "subject": "alice", "audience": "knowledge-agent"}
+{"ts": "2026-10-12T02:12:42.662Z", "level": "INFO", "service": "identity", "logger": "runtime", "msg": "request", "correlation_id": "fb73ff8dfdd6", "method": "POST", "path": "/login", "status": 200, "ms": 0.6}
+{"ts": "2026-10-12T02:12:48.187Z", "level": "INFO", "service": "identity", "logger": "identity", "msg": "login", "correlation_id": "56956f772fc7", "subject": "dave", "audience": "knowledge-agent"}
+{"ts": "2026-10-12T02:12:48.187Z", "level": "INFO", "service": "identity", "logger": "runtime", "msg": "request", "correlation_id": "56956f772fc7", "method": "POST", "path": "/login", "status": 200, "ms": 0.4}
+{"ts": "2026-10-12T02:12:49.057Z", "level": "INFO", "service": "identity", "logger": "identity", "msg": "login", "correlation_id": "77698944f3e0", "subject": "bob", "audience": "knowledge-agent"}
+{"ts": "2026-10-12T02:12:49.057Z", "level": "INFO", "service": "identity", "logger": "runtime", "msg": "request", "correlation_id": "77698944f3e0", "method": "POST", "path": "/login", "status": 200, "ms": 0.4}
+{"ts": "2026-10-12T02:12:50.315Z", "level": "INFO", "service": "identity", "logger": "identity", "msg": "login", "correlation_id": "e26c7118174e", "subject": "alice", "audience": "knowledge-agent"}
+{"ts": "2026-10-12T02:12:50.316Z", "level": "INFO", "service": "identity", "logger": "runtime", "msg": "request", "correlation_id": "e26c7118174e", "method": "POST", "path": "/login", "status": 200, "ms": 0.4}
+{"ts": "2026-10-12T02:12:51.656Z", "level": "INFO", "service": "identity", "logger": "identity", "msg": "login", "correlation_id": "caed8c1007dc", "subject": "alice", "audience": "knowledge-agent"}
+{"ts": "2026-10-12T02:12:51.657Z", "level": "INFO", "service": "identity", "logger": "runtime", "msg": "request", "correlation_id": "caed8c1007dc", "method": "POST", "path": "/login", "status": 200, "ms": 0.4}
+{"ts": "2026-10-12T02:12:52.643Z", "level": "INFO", "service": "identity", "logger": "identity", "msg": "login", "correlation_id": "1f27cb206760", "subject": "dave", "audience": "knowledge-agent"}
+{"ts": "2026-10-12T02:12:52.643Z", "level": "INFO", "service": "identity", "logger": "runtime", "msg": "request", "correlation_id": "1f27cb206760", "method": "POST", "path": "/login", "status": 200, "ms": 0.4}
+{"ts": "2026-10-12T02:13:00.737Z", "level": "INFO", "service": "identity", "logger": "runtime", "msg": "stop signal received, draining", "signal": 21, "drain_s": 2.0, "inflight": 0}
+{"ts": "2026-10-12T02:13:02.762Z", "level": "INFO", "service": "identity", "logger": "uvicorn.error", "msg": "Shutting down"}
+{"ts": "2026-10-12T02:13:02.871Z", "level": "INFO", "service": "identity", "logger": "uvicorn.error", "msg": "Waiting for application shutdown."}
+{"ts": "2026-10-12T02:13:02.871Z", "level": "INFO", "service": "identity", "logger": "uvicorn.error", "msg": "Application shutdown complete."}
+{"ts": "2026-10-12T02:13:02.871Z", "level": "INFO", "service": "identity", "logger": "uvicorn.error", "msg": "Finished server process [15648]"}
+{"ts": "2026-10-12T02:13:02.872Z", "level": "INFO", "service": "identity", "logger": "runtime", "msg": "stopped", "inflight_at_exit": 0}

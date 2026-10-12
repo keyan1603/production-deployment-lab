@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import time
 from dataclasses import asdict
 from pathlib import Path
 
@@ -34,6 +35,7 @@ from starlette.routing import Route
 from a2a_layer.client import KnowledgeClient
 from deploylab import logs
 from deploylab.config import Common, Env
+import hmac
 from deploylab.releases import Registry, ReleaseSet, admin_routes, patched_prompts
 from deploylab.remote import RemoteGatewayProvider, RemoteIdentity
 from deploylab.telemetry import telemetry
@@ -101,6 +103,7 @@ def create_app(settings: Settings, platform: TicketPlatform = None, remote: Remo
 
     slots = asyncio.Semaphore(settings.max_concurrent)
     state = {"waiting": 0}
+    freeze = {"on": False, "reason": "", "since": None}
 
     async def shadow_run(ticket, operator, token, corr, primary, release_id) -> None:
         """Run the shadow release on a copy of the request. Never changes what the caller received."""
@@ -133,6 +136,9 @@ def create_app(settings: Settings, platform: TicketPlatform = None, remote: Remo
             return JSONResponse({"error": "bad_request", "detail": f"text must be 1..{MAX_TEXT} characters"}, status_code=400)
         if lc.draining:
             return JSONResponse({"error": "draining"}, status_code=503, headers={"Retry-After": "5"})
+        if freeze["on"]:                                     # the operators' kill switch: nothing new starts, work in flight finishes
+            telemetry().inc("ai.ticket.refused", reason="frozen")
+            return JSONResponse({"error": "frozen", "reason": freeze["reason"]}, status_code=503, headers={"Retry-After": "300"})
         if state["waiting"] >= settings.max_waiting:       # backpressure: refuse instead of queueing without bound
             return JSONResponse({"error": "overloaded"}, status_code=429, headers={"Retry-After": "5"})
         user = USERS.get(claims.sub)
@@ -181,10 +187,23 @@ def create_app(settings: Settings, platform: TicketPlatform = None, remote: Remo
         return rows
 
     telemetry().gauge("ai.release.serving", release_info)
+    async def freeze_endpoint(request: Request) -> JSONResponse:
+        key, given = settings.admin_key.reveal(), request.headers.get("x-admin-key", "")
+        if not key or not given or not hmac.compare_digest(key, given):
+            return JSONResponse({"error": "unauthorized"}, status_code=401)
+        if request.method == "POST":
+            data = await request.json()
+            freeze.update(on=bool(data.get("on")), reason=str(data.get("reason", ""))[:200], since=(time.time() if data.get("on") else None))
+            logs.event(log, "freeze changed", level=logging.WARNING, **{k: v for k, v in freeze.items() if k != "since"})
+        return JSONResponse(freeze)
+
+    telemetry().gauge("ai.ticket.frozen", lambda: [(1 if freeze["on"] else 0, {})])
     lc.checks["gateway"] = lambda: _ready(settings.gateway_url)
     lc.checks["identity"] = lambda: _ready(settings.identity_url)
     lc.soft_checks["knowledge"] = lambda: _ready(settings.knowledge_url)
     routes = [Route("/tickets", submit, methods=["POST"])]
+    if settings.admin_key.reveal():
+        routes.append(Route("/admin/freeze", freeze_endpoint, methods=["GET", "POST"]))
     if settings.admin_key.reveal() and build is not None:
         routes += admin_routes(rs, registry, build, settings.admin_key.reveal())
     app = make_app(lc, routes)
