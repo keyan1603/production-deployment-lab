@@ -334,13 +334,15 @@ def test_overload_is_refused_with_retry_after_instead_of_queueing_forever(ticket
     assert refused.headers["retry-after"] == "5"
 
 
-def test_draining_refuses_new_tickets_and_readiness_names_the_hard_dependencies(ticket_server):
+def test_draining_keeps_serving_tickets_while_readiness_reports_it_and_names_the_hard_dependencies(ticket_server):
     srv, _, lc = ticket_server()
     r = httpx.get(f"{srv.url}/readyz")
     assert r.status_code == 503 and "gateway" in r.json()["checks"] and "identity" in r.json()["checks"]     # nothing is listening on :1
     assert r.json()["checks"]["soft:knowledge"].startswith("unavailable") or "not ready" in r.json()["checks"]["soft:knowledge"]
     lc.draining = True
-    assert httpx.post(f"{srv.url}/tickets", json={"text": "x"}, headers={"Authorization": f"Bearer {op_token()}"}).status_code == 503
+    assert httpx.get(f"{srv.url}/readyz").json()["status"] == "draining"                  # the load balancer is told to stop sending traffic
+    answer = httpx.post(f"{srv.url}/tickets", json={"text": "x"}, headers={"Authorization": f"Bearer {op_token()}"})
+    assert answer.status_code == 200                                                        # but a ticket that still arrives is not turned away
 
 
 # ---- knowledge service --------------------------------------------------------------------------

@@ -9,3 +9,4 @@ vendor/
 secrets/
 run-gate/
 run-p2/
+secrets-k8s/

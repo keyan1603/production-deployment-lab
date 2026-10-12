@@ -1,0 +1,30 @@
+
+======== A. rolling updates under load, five restarts each, naive settings against the manifests' settings
+[5 restarts, no readiness gate, no drain, 1 s grace] recovered after 13.0s; tickets 95: released 88, held 0, failed 7 {"RemoteProtocolError": 7}; service not ready for [2.5] seconds
+[5 restarts, readiness gate, drain, 75 s grace] recovered after 15.6s; tickets 97: released 95, held 0, failed 2 {"HTTP 503": 2}; service not ready for [2.5] seconds
+
+======== B. crashes: a pod killed with no grace (SIGKILL), three times each
+[ticket pod killed (2 replicas)] recovered after 4.1s; tickets 37: released 37, held 0, failed 0 {}; service not ready for no time at all seconds
+[gateway pod killed (the only one)] recovered after 4.1s; tickets 36: released 34, held 2, failed 0 {}; service not ready for [5.1, 2.5, 5.1] seconds
+
+======== C. draining the node that hosts the gateway
+  gateway on ai-lab-worker | tickets on ['worker', 'worker2']
+  drain: node/ai-lab-worker drained | Warning: ignoring DaemonSet-managed Pods: kube-system/kindnet-x6qf9, kube-system/kube-proxy-dsjf2
+[node drain] recovered after 13.5s; tickets 16: released 16, held 0, failed 0 {}; service not ready for [2.5] seconds
+  pods after: {'gateway': ['worker2'], 'tickets': ['worker2', 'worker2'], 'knowledge': ['worker2']}
+
+======== summary
+| event under load                                   |   mean recovery s |   tickets |   released |   held |   failed | how they failed            | service unready, seconds   |
+|----------------------------------------------------|-------------------|-----------|------------|--------|----------|----------------------------|----------------------------|
+| 5 restarts, no readiness gate, no drain, 1 s grace |              13   |        95 |         88 |      0 |        7 | {"RemoteProtocolError": 7} | 2.5                        |
+| 5 restarts, readiness gate, drain, 75 s grace      |              15.6 |        97 |         95 |      0 |        2 | {"HTTP 503": 2}            | 2.5                        |
+| ticket pod killed (2 replicas)                     |               4.1 |        37 |         37 |      0 |        0 | {}                         | -                          |
+| gateway pod killed (the only one)                  |               4.1 |        36 |         34 |      2 |        0 | {}                         | 5.1, 2.5, 5.1              |
+| node drain                                         |              13.5 |        16 |         16 |      0 |        0 | {}                         | 2.5                        |
+finished exit=0
+
+======== A. rolling updates under load, five restarts each, naive settings against the manifests' settings
+[5 restarts, readiness gate, drain, 75 s grace] recovered after 25.0s; tickets 121: released 121, held 0, failed 0 {}; service not ready for [2.5, 2.5, 2.5] seconds
+| event under load                              |   mean recovery s |   tickets |   released |   held |   failed | how they failed   | service unready, seconds   |
+|-----------------------------------------------|-------------------|-----------|------------|--------|----------|-------------------|----------------------------|
+| 5 restarts, readiness gate, drain, 75 s grace |                25 |       121 |        121 |      0 |        0 | {}                | 2.5, 2.5, 2.5              |

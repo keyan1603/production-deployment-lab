@@ -14,6 +14,8 @@ RUN pip install --no-deps /system
 
 COPY deploylab ./deploylab
 COPY services ./services
+COPY releases ./releases
+COPY sim ./sim
 
 # Run as an unprivileged user; nothing in these services needs to write to the image.
 RUN useradd --uid 10001 --no-create-home --shell /usr/sbin/nologin app

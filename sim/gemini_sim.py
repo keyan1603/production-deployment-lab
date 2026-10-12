@@ -287,8 +287,9 @@ def create_app(sim: Sim = None) -> Starlette:
 if __name__ == "__main__":
     import argparse
     ap = argparse.ArgumentParser()
+    ap.add_argument("--host", default="127.0.0.1")
     ap.add_argument("--port", type=int, default=8900)
     ap.add_argument("--rpm", type=int, default=15)
     ap.add_argument("--rpd", type=int, default=500)
     a = ap.parse_args()
-    uvicorn.run(create_app(Sim(a.rpm, a.rpd)), host="127.0.0.1", port=a.port, log_level="warning")
+    uvicorn.run(create_app(Sim(a.rpm, a.rpd)), host=a.host, port=a.port, log_level="warning")

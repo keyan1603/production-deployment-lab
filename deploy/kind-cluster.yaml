@@ -1,0 +1,13 @@
+# A three-node Kubernetes cluster (one control plane, two workers) on the local container runtime.
+# Two workers so a node can be drained while the other keeps serving. The NodePorts are published on the host so the studies
+# can reach the identity and ticket services the way an outside client would.
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+name: ai-lab
+nodes:
+  - role: control-plane
+    extraPortMappings:
+      - {containerPort: 30101, hostPort: 30101, listenAddress: "127.0.0.1"}
+      - {containerPort: 30104, hostPort: 30104, listenAddress: "127.0.0.1"}
+  - role: worker
+  - role: worker

@@ -35,3 +35,15 @@ Short records, each tied to something measured in this repo. Format: context, de
 - **Context.** The free tier allows 500 requests a day per model. One full load sweep would spend it in a minute, and the real provider cannot be made to fail on demand.
 - **Decision.** `sim/gemini_sim.py` stands in for the API behind `GOOGLE_GEMINI_BASE_URL`: per-model minute and day quotas in the real error shape, log-normal latency, and switchable faults. Everything else in the drills is real.
 - **Consequences.** Results are labelled as simulated and say nothing about answer quality. A simulator whose heavy model has generous limits quietly makes scaling look free, so the heavy model gets the real tier's small allowance.
+
+## O8. Keep serving while draining; the drain must outlast the platform's convergence
+- **Context.** On a stop signal the service reports unready, waits, then closes its listener. Kubernetes (like any load balancer) takes a moment to stop sending traffic to a terminating pod.
+- **Evidence.** Rolling restarts under load: with new tickets refused during the drain, 2 of 97 and 3 of 123 failed, the one refusal traced was within a second of the stop signal; raising the drain from 5 to 15 s changed nothing, because the refusals were not in the
+  tail of the window but at its start. Serving through the drain: 0 of 121.
+- **Decision.** `/readyz` flips at once; work is not refused until the listener closes. `DRAIN_SECONDS` is 15 so the probes (period 5 s, threshold 2) and the endpoints have converged before it ends.
+- **Consequences.** This reverses Phase 1's behaviour (refuse new tickets while draining). A service with no balancer in front of it is unaffected either way.
+
+## O9. Kubernetes, locally first
+- **Decision.** The cloud step is a local Kubernetes cluster (kind on Podman): free, no account, reproducible, and the manifests are the portable part. The pod security standard is enforced by the cluster, the network is default-deny, each pod mounts only
+  its own secret files, and the gateway is one replica with a Recreate strategy.
+- **Consequences.** A managed cluster changes the registry, the ingress and the secret store, not the manifests' shape. What a hosted platform adds (image pulls, node start-up, a real load balancer) is not measured here.

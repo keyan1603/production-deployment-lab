@@ -134,8 +134,9 @@ def create_app(settings: Settings, platform: TicketPlatform = None, remote: Remo
             return JSONResponse({"error": "bad_request", "detail": "send JSON with a 'text' field"}, status_code=400)
         if not text or len(text) > MAX_TEXT:
             return JSONResponse({"error": "bad_request", "detail": f"text must be 1..{MAX_TEXT} characters"}, status_code=400)
-        if lc.draining:
-            return JSONResponse({"error": "draining"}, status_code=503, headers={"Retry-After": "5"})
+        # While draining the service keeps working: /readyz already reports 503, but a load balancer or a Kubernetes Service takes a moment
+        # to stop sending traffic, and refusing in that moment turns the propagation delay into errors (measured: refusals arrived 0.5 s
+        # after the stop signal). New work stops being accepted when the listener closes at the end of the drain.
         if freeze["on"]:                                     # the operators' kill switch: nothing new starts, work in flight finishes
             telemetry().inc("ai.ticket.refused", reason="frozen")
             return JSONResponse({"error": "frozen", "reason": freeze["reason"]}, status_code=503, headers={"Retry-After": "300"})

@@ -1,0 +1,41 @@
+
+======== 1. the cluster
+NAME                   STATUS   ROLES           AGE   VERSION   INTERNAL-IP   EXTERNAL-IP   OS-IMAGE                       KERNEL-VERSION                              CONTAINER-RUNTIME
+  ai-lab-control-plane   Ready    control-plane   25m   v1.37.0   10.89.0.4     <none>        Debian GNU/Linux 13 (trixie)   6.18.40.1-microsoft-standard-WSL2 (amd64)   containerd://2.3.4
+  ai-lab-worker          Ready    <none>          25m   v1.37.0   10.89.0.2     <none>        Debian GNU/Linux 13 (trixie)   6.18.40.1-microsoft-standard-WSL2 (amd64)   containerd://2.3.4
+  ai-lab-worker2         Ready    <none
+| deployment   | pods (name@node)                                                  |
+|--------------|-------------------------------------------------------------------|
+| identity     | identity-7db6447fcf-kvgsg@worker2                                 |
+| gateway      | gateway-796cfbc6b9-nxmqn@worker2                                  |
+| knowledge    | knowledge-8d7956d48-4hcx8@worker2                                 |
+| tickets      | tickets-658884b4c9-8d9sr@worker2 tickets-658884b4c9-s2wzp@worker2 |
+| provider-sim | provider-sim-57d484868b-vqdn5@worker2                             |
+rollout settings: gateway strategy = Recreate | tickets maxUnavailable = 0 | PDB: 1
+
+======== 2. tickets through the cluster, from outside, over TLS
+  C1: HTTP 200 released model_calls=4 tools=['ask_policy', 'get_customer', 'get_order', 'search_kb'] in 7.4s
+  C2: HTTP 200 released model_calls=4 tools=['get_customer', 'get_order', 'search_kb'] in 7.2s
+  pods of tickets: 3 log lines carry the correlation id of ticket C1
+  pods of gateway: 5 log lines carry the correlation id of ticket C1
+  pods of knowledge: 4 log lines carry the correlation id of ticket C1
+  pods of identity: 2 log lines carry the correlation id of ticket C1
+
+======== 3. posture the platform enforces
+| pod       |   uid | write to the image   | secret files visible                                                         |
+|-----------|-------|----------------------|------------------------------------------------------------------------------|
+| identity  | 10001 | write refused        | ca.pem tls_cert.pem tls_key.pem token_secret                                 |
+| gateway   | 10001 | write refused        | ca_bundle.pem gateway_service_keys gemini_key tls_cert.pem tls_key.pem       |
+| knowledge | 10001 | write refused        | admin_key ca.pem gateway_key_knowledge tls_cert.pem tls_key.pem token_secret |
+| tickets   | 10001 | write refused        | admin_key ca.pem gateway_key_ticket tls_cert.pem tls_key.pem token_secret    |
+applying a privileged pod: Error from server (Forbidden): error when creating "STDIN": pods "bad" is forbidden: violates PodSecurity "restricted:latest": privileged (container "c" must not set securityContext.privileged=true), allowPrivilegeEscalation != false (container "c" must set se
+
+======== 4. network policy (default deny; each service admits only its callers)
+| from                      | to                        | result    |
+|---------------------------|---------------------------|-----------|
+| an unlabelled pod         | tickets:8104 (front door) | CONNECTED |
+| an unlabelled pod         | gateway:8102              | BLOCKED   |
+| an unlabelled pod         | knowledge:8103            | BLOCKED   |
+| a pod labelled as tickets | gateway:8102              | CONNECTED |
+  (labels are not identity: anyone who can create pods in the namespace can claim a label; that is what RBAC is for)
+(the cluster is kept; events under load are in phase5_events.py; `kind delete cluster --name ai-lab` removes it)
