@@ -1,0 +1,87 @@
+ready: {'identity': 3.2, 'tickets': 9.3, 'gateway': 9.9, 'knowledge': 27.1}
+
+======== 1. the admin API refuses anyone without the key; a release that fails lint never loads
+no key: 401 | wrong key: 401
+load a release that is not in the registry: 409 no such release: r9-does-not-exist
+load r2-shorter-reply: 200 {'loaded': 'r2-shorter-reply', 'digest': '84783c23a692'}
+loaded: {'r1-baseline': '55dee42267c2', 'r2-shorter-reply': '84783c23a692'} | active: r1-baseline
+
+======== 2. activate r2, then roll back: one call each, no restart
+before: r1-baseline released
+activate took 0.39s; active now r2-shorter-reply, previous r1-baseline
+after activate: r2-shorter-reply released
+rollback took 0.40s; active now r1-baseline
+after rollback: r1-baseline released
+
+======== 3. a healthy canary: r2 at 30 percent of tickets
+| ticket   |   HTTP | action   | served by        | role    | time   |
+|----------|--------|----------|------------------|---------|--------|
+| B01      |    200 | released | r1-baseline      | control | 29.0s  |
+| B02      |    200 | released | r1-baseline      | control | 10.7s  |
+| B03      |    200 | released | r2-shorter-reply | canary  | 13.9s  |
+| B04      |    200 | released | r2-shorter-reply | canary  | 8.9s   |
+| B05      |    200 | released | r1-baseline      | control | 27.5s  |
+| B06      |    200 | released | r1-baseline      | control | 12.1s  |
+| B07      |    200 | released | r1-baseline      | control | 13.8s  |
+| B08      |    200 | released | r2-shorter-reply | canary  | 7.2s   |
+| B09      |    200 | released | r1-baseline      | control | 30.1s  |
+| B10      |    200 | released | r2-shorter-reply | canary  | 12.6s  |
+| B11      |    200 | released | r1-baseline      | control | 12.4s  |
+| B12      |    200 | released | r1-baseline      | control | 22.7s  |
+canary still on: {'release': 'r2-shorter-reply', 'percent': 30.0} | window: {'canary': {'n': 4, 'bad_rate': 0.0, 'p50_s': 12.26}, 'control': {'n': 8, 'bad_rate': 0.0, 'p50_s': 22.39}}
+
+======== 4. a bad canary: r4-renamed-categories at 40 percent, never gated
+loaded r4: {'loaded': 'r4-renamed-categories', 'digest': 'c99992137607'}
+| ticket   |   HTTP | action   | served by             | role    | time   |
+|----------|--------|----------|-----------------------|---------|--------|
+| C01      |    200 | released | r1-baseline           | control | 11.6s  |
+| C02      |    200 | released | r1-baseline           | control | 15.8s  |
+| C03      |    200 | released | r1-baseline           | control | 9.2s   |
+| C04      |    200 | held     | r4-renamed-categories | canary  | 25.6s  |
+| C05      |    200 | released | r1-baseline           | control | 11.2s  |
+| C06      |    200 | released | r1-baseline           | control | 15.6s  |
+| C07      |    200 | released | r1-baseline           | control | 9.7s   |
+| C08      |    200 | held     | r4-renamed-categories | canary  | 25.4s  |
+| C09      |    200 | released | r1-baseline           | control | 11.5s  |
+| C10      |    200 | released | r1-baseline           | control | 14.6s  |
+| C11      |    200 | held     | r4-renamed-categories | canary  | 11.6s  |
+| C12      |    200 | held     | r4-renamed-categories | canary  | 23.7s  |
+| C13      |    200 | released | r1-baseline           | control | 14.6s  |
+| C14      |    200 | released | r1-baseline           | control | 11.6s  |
+| C15      |    200 | held     | r4-renamed-categories | canary  | 22.9s  |
+| C16      |    200 | held     | r4-renamed-categories | canary  | 13.0s  |
+
+customers served by the bad release before it was removed: 6 (all held: True)
+canary now: None | active: r1-baseline
+EVENT auto_rollback: canary bad-outcome rate 100% vs control 0% after 6 canary requests (limit +30%)
+three more tickets after the automatic rollback were served by: ['r1-baseline'] ['released', 'released', 'released']
+
+======== 5. shadow: r2 sees a copy of active traffic, callers never see it
+served by: ['r1-baseline'] | roles: ['active']
+shadow comparison: {'n': 6, 'same_action': 6, 'same_category': 6, 'same_severity': 6, 'candidate_errors': 0}
+
+======== 6. the knowledge release: a bad answerer goes live, then one call undoes it
+r1-baseline answers: I can't find that in the documents you have access to.
+r3-helpful-answerer answers: The answer was withheld by policy checks.
+after rollback: I can't find that in the documents you have access to.
+knowledge release history: ['initial:r1-baseline', 'activate:r3-helpful-answerer', 'rollback:r3-helpful-answerer']
+
+======== 7. what the release set recorded
+| release               | digest       |   requests |   bad rate |   p50 s |
+|-----------------------|--------------|------------|------------|---------|
+| r1-baseline           | 55dee42267c2 |         29 |          0 |   14.44 |
+| r2-shorter-reply      | 84783c23a692 |          5 |          0 |   11.73 |
+| r4-renamed-categories | c99992137607 |          6 |          1 |   23.48 |
+events:
+   {'type': 'initial', 'release': 'r1-baseline', 'previous': None}
+   {'type': 'activate', 'release': 'r2-shorter-reply', 'previous': 'r1-baseline'}
+   {'type': 'rollback', 'release': 'r2-shorter-reply', 'reason': 'demonstration', 'restored': 'r1-baseline'}
+   {'type': 'canary', 'release': 'r2-shorter-reply', 'percent': 30.0}
+   {'type': 'rollback', 'release': 'r2-shorter-reply', 'reason': 'end healthy canary', 'restored': 'r1-baseline'}
+   {'type': 'canary', 'release': 'r4-renamed-categories', 'percent': 40.0}
+   {'type': 'auto_rollback', 'release': 'r4-renamed-categories', 'restored': 'r1-baseline', 'reason': 'canary bad-outcome rate 100% vs control 0% after 6 canary requests (limit +30%)'}
+   {'type': 'shadow', 'release': 'r2-shorter-reply'}
+   {'type': 'shadow', 'release': None}
+
+stopping: {"tickets": {"exit": 0, "seconds": 3.2}, "knowledge": {"exit": 0, "seconds": 2.5}, "gateway": {"exit": 0, "seconds": 2.4}, "identity": {"exit": 0, "seconds": 2.2}}
+finished
