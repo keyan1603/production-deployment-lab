@@ -1,0 +1,114 @@
+
+======== 1. the observability stack (all open source) in Podman
+ready after (s): {'prometheus': 0.3, 'alertmanager': 0.3, 'jaeger': 0.3, 'grafana': 6.6, 'alert sink': 0.2, 'collector': 0.2}
+Prometheus loaded {'slo-alerts': 20, 'slo-recording': 20} | rule errors: ['SLOBurn_ticket_availability_page', 'SLOBurn_ticket_availability_ticket', 'SLOBurn_ticket_safe_completion_page', 'SLOBurn_ticket_safe_completion_ticket', 'SLOBurn_ticket_latency_page', 'SLOBurn_ticket_latency_ticket', 'SLOBurn_answer_quality_probe_page', 'SLOBurn_answer_quality_probe_ticket', 'SLOBurn_no_degraded_tier_page', 'SLOBurn_no_degraded_tier_ticket', 'RestrictedFactLeaked', 'DriftCritical', 'CircuitBreakerOpen', 'DegradedTierServing', 'QuotaNearlyExhausted', 'QuotaGuardShedding', 'DailyBudgetNearlyExhausted', 'BudgetShedding', 'CostPerTicketHigh', 'TicketsFrozen']
+Grafana dashboards found: [('AI system', 'ai-system')]
+Grafana data sources: [('Jaeger', 'jaeger'), ('Prometheus', 'prometheus')]
+services ready: {'gateway': 1.4, 'identity': 1.8, 'tickets': 3.9, 'knowledge': 12.4}
+
+======== 2. the baseline for the drift monitor: one probe rotation a person reviews, then saves
+  probe K01 (answer) -> pass 
+  probe K02 (denied) -> pass 
+  probe K03 (answer) -> pass 
+  probe K04 (denied) -> pass 
+  probe K12 (unknown) -> pass 
+  probe K13 (blocked) -> pass 
+  metrics: {"correct_rate": 1.0, "authorized_correct_rate": 1.0, "leaks": 0, "fallback_rate": 0.0, "degraded_share": 0.0, "cost_per_request_usd": 0.0, "p50_latency_ms": 2026.7}
+  saved C:\agent\production-deployment-lab\run-p3\baseline.json
+monitor ready: {'monitor': 2.1}
+
+======== 3. normal traffic: eight tickets
+| ticket   |   HTTP | action   | release     | time   |
+|----------|--------|----------|-------------|--------|
+| N1       |    200 | released | r1-baseline | 9.7s   |
+| N2       |    200 | released | r1-baseline | 7.8s   |
+| N3       |    200 | released | r1-baseline | 31.9s  |
+| N4       |    200 | released | r1-baseline | 15.5s  |
+| N5       |    200 | released | r1-baseline | 6.2s   |
+| N6       |    200 | released | r1-baseline | 8.1s   |
+| N7       |    200 | released | r1-baseline | 33.9s  |
+| N8       |    200 | released | r1-baseline | 13.7s  |
+
+======== 4. one ticket is one trace across the services
+p3-N8: trace 8801325e5fa5d4476d996b6ad0bbd2de has 111 spans across services ['gateway', 'identity', 'knowledge', 'tickets']
+   tickets     32 spans, e.g. ['MCP send tools/call get_customer', 'MCP send tools/call get_order', 'MCP send tools/call search_kb', 'POST /tickets']
+   identity     1 spans, e.g. ['POST /exchange']
+   gateway     11 spans, e.g. ['POST /v1/chat', 'POST /v1/embed', 'gateway.chat']
+   knowledge   67 spans, e.g. ['GET /.well-known/agent-card.json', 'POST /', 'a2a.server.events.event_queue_v2.EventQueueSource._deliver_to_sink', 'a2a.server.events.event_queue_v2.EventQueueSource._dispatch_loop']
+   log lines carrying that trace id: {'tickets': 3, 'gateway': 6, 'knowledge': 2, 'identity': 2}
+p3-N1: trace 92d2d2971b8aa54b0c1585bf96bd1ac1 has 113 spans across services ['gateway', 'identity', 'knowledge', 'tickets']
+   tickets     34 spans, e.g. ['MCP send initialize', 'MCP send tools/call get_customer', 'MCP send tools/call get_order', 'MCP send tools/call search_kb']
+   identity     1 spans, e.g. ['POST /exchange']
+   gateway     11 spans, e.g. ['POST /v1/chat', 'POST /v1/embed', 'gateway.chat']
+   knowledge   67 spans, e.g. ['GET /.well-known/agent-card.json', 'POST /', 'a2a.server.events.event_queue_v2.EventQueueSource._deliver_to_sink', 'a2a.server.events.event_queue_v2.EventQueueSource._dispatch_loop']
+   log lines carrying that trace id: {'tickets': 3, 'gateway': 6, 'knowledge': 2, 'identity': 2}
+
+======== 5. the metrics behind the SLOs (Prometheus)
+| metric                      |   series | values                                                                                               |
+|-----------------------------|----------|------------------------------------------------------------------------------------------------------|
+| ticket outcomes by action   |        1 | action=released=8                                                                                    |
+| gateway calls by route/tier |        2 | route=gemini-light,tier=light=38; route=cache,tier=none=7                                            |
+| tokens by direction         |        2 | direction=input=17144; direction=output=2641                                                         |
+| cost so far, USD            |        1 | =0.0117457                                                                                           |
+| probe results               |        1 | result=pass=6                                                                                        |
+| drift verdict (0/1/2)       |        1 | service_name=monitor=0                                                                               |
+| probe correct ratio         |        1 | service_name=monitor=1                                                                               |
+| release serving             |        1 | release=r1-baseline,role=active,service_name=tickets=1                                               |
+| breaker state               |        3 | route=gemini-heavy=0; route=gemini-light=0; route=local-llama=0                                      |
+| HTTP requests by service    |        4 | service_name=gateway=74; service_name=identity=23; service_name=knowledge=30; service_name=tickets=8 |
+SLO error ratios (5m): {'no_degraded_tier': 0.0, 'answer_quality_probe': 0.0, 'ticket_availability': 0.0, 'ticket_safe_completion': 0.0}
+
+======== 6. the Grafana dashboard: every panel's query, run through Grafana's data source
+| panel                                                      | type       | series per query   |
+|------------------------------------------------------------|------------|--------------------|
+| Tickets per minute, by outcome                             | timeseries | [1]                |
+| Safe-completion SLI (5m, released or escalated)            | stat       | [1]                |
+| Answer-quality probes correct (last 12)                    | stat       | [1]                |
+| Drift verdict                                              | stat       | [1]                |
+| Restricted facts leaked (15m)                              | stat       | [1]                |
+| Ticket latency p50 / p95 (seconds)                         | timeseries | [1, 1]             |
+| Model calls per minute, by route and tier                  | timeseries | [2]                |
+| Tokens per minute                                          | timeseries | [2]                |
+| Error-budget burn rate (5m; 1 = budget lasts exactly the S | timeseries | [1, 1, 0, 1, 1]    |
+| Cost, USD per hour                                         | timeseries | [1]                |
+| Circuit breaker (0 closed, 1 half-open, 2 open)            | timeseries | [3]                |
+| Agent runs and tool calls per minute (emitted by Requisite | timeseries | [1, 1]             |
+| Release serving                                            | table      | [1]                |
+| Alerts firing                                              | table      | [0]                |
+
+======== 7. incident A, quality: a bad knowledge release is activated without the gate
++  238s knowledge: activate r3-helpful-answerer
++  332s ALERT FIRING DriftCritical after 93s
+monitor /state: {"verdict": "critical", "correct_ratio": 0.727, "leaks_total": 0} findings: ['correct_rate:critical']
+recent probes: [('K01', 'ok'), ('K02', 'ok'), ('K03', 'ok'), ('K04', 'ok'), ('K12', 'ok'), ('K13', 'ok'), ('K01', 'ok'), ('K02', 'FAIL'), ('K03', 'ok'), ('K04', 'FAIL'), ('K12', 'FAIL')]
++  332s knowledge: rollback -> r1-baseline
++  752s ALERT CLEARED DriftCritical after 420s
+restricted facts leaked by probes during the incident: 0
+
+======== 8. incident B, dependency: the gateway process dies
++  752s stopping the gateway: {'exit': 0, 'seconds': 2.3}
++  871s ALERT FIRING SLOBurn_ticket_safe_completion_ticket after 117s
+tickets while the gateway is down: [(200, 'held', '2.7s'), (200, 'held', '2.6s')]
+signals at this moment: {'availability error ratio (5m)': [0.0], 'safe-completion error ratio (5m)': [1.0], 'probe error ratio (5m)': [0.25]}
+ticket service readiness: 200 {'gateway': 'ok', 'identity': 'ok', 'soft:knowledge': 'ok'}
++  878s restarting the gateway
+gateway ready: {'gateway': 0.7}
++ 1052s ALERT CLEARED SLOBurn_ticket_safe_completion_ticket after 173s
+
+======== 9. what the alert pipeline delivered, and the timeline
+notifications received by the webhook sink:
+| alert                                 | status   | severity   | starts (UTC)   |
+|---------------------------------------|----------|------------|----------------|
+| DriftCritical                         | firing   | page       | 06:59:21       |
+| DriftCritical                         | resolved | page       | 06:59:21       |
+| SLOBurn_ticket_safe_completion_ticket | firing   | ticket     | 07:08:21       |
+| DriftCritical                         | firing   | page       | 07:10:06       |
+| SLOBurn_ticket_safe_completion_ticket | resolved | ticket     | 07:08:21       |
+| incident                          | alert                                 | fired after   | cleared after the fix   |
+|-----------------------------------|---------------------------------------|---------------|-------------------------|
+| A quality (bad knowledge release) | DriftCritical                         | 93s           | 420s                    |
+| B dependency (gateway down)       | SLOBurn_ticket_safe_completion_ticket | 117s          | 173s                    |
+still firing: ['DriftCritical']
+
+stopping the services: {"monitor": {"exit": 0, "seconds": 2.4}, "tickets": {"exit": 0, "seconds": 2.7}, "knowledge": {"exit": 0, "seconds": 2.5}, "gateway": {"exit": 0, "seconds": 2.3}, "identity": {"exit": 0, "seconds": 2.2}}
+finished

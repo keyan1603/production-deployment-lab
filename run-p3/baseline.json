@@ -5,5 +5,5 @@
   "fallback_rate": 0.0,
   "degraded_share": 0.0,
   "cost_per_request_usd": 0.0,
-  "p50_latency_ms": 948.0
+  "p50_latency_ms": 2026.7
 }
